@@ -20,6 +20,7 @@
 | `storage` | 对象存储接口 + 内存实现 + S3/MinIO（SigV4）实现 |
 | `audit` | 审计写入器（Recorder）与路由 detail 映射 |
 | `notification` | 站内通知域（`t_acat_notification`，U10-U12 契约：列表/未读数/已读） |
+| `auth` | 用户认证与授权域（抽取自 acat-admin-user）：登录/bootstrap、工作人员、读者用户、角色、权限管理（`auth/domain`、`auth/repo`、`auth/service`、`auth/httpapi`） |
 
 ## 数据契约
 

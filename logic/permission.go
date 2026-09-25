@@ -130,3 +130,12 @@ func (a *Actor) RequireAnyPermission(codes ...string) error {
 	}
 	return a.checker.CheckAnyPermission(a.Session, codes...)
 }
+
+// RequirePermissionOrSelf 自操作绕过：当前登录 id == 目标 id 时直接放行，
+// 否则要求 code 权限。
+func (a *Actor) RequirePermissionOrSelf(targetID, code string) error {
+	if a != nil && targetID != "" && a.LoginID == targetID {
+		return nil
+	}
+	return a.RequirePermission(code)
+}
