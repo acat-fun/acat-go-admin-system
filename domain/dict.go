@@ -1,19 +1,19 @@
 package domain
 
-// 本文件对应 侧字典域实体与视图：
-//   - AdminDictEntity     (fun.acat.admin.entity.AdminDictEntity, 表 t_acat_dict)
-//   - AdminDictDataEntity (fun.acat.admin.entity.AdminDictDataEntity, 表 t_acat_dict_data)
-//   - DictVO              (fun.acat.admin.system.vo.DictVO)
-//   - DictDataVO          (fun.acat.admin.vo.DictDataVO)
+// 本文件定义字典域的实体与视图结构：
+//   - AdminDictEntity     字典定义（表 t_acat_dict）
+//   - AdminDictDataEntity 字典数据项（表 t_acat_dict_data）
+//   - DictVO              字典视图（含数据项与数据项计数）
+//   - DictDataVO          字典数据项视图（含 children 树）
 //
-// 字段顺序与 侧 Jackson 序列化顺序一致：BaseEntity 字段在前（id/isDeleted/
-// createBy/updateBy/createdAt/updatedAt/version），子类字段在后。
+// 字段顺序固定为审计字段在前（id/isDeleted/createBy/updateBy/createdAt/
+// updatedAt/version），业务字段在后。
 // 可空列一律用指针，保证 JSON 输出 null 而不是零值。
 
 // AdminDictEntity 是字典定义实体。
 //
-// 注意 侧以 Entity 直接作为请求契约（契约清单 §3.4 S7），Go 侧仍按该字段集收参，
-// 但服务端强制生成主键与审计字段（不接受客户端指定 id/createBy/version，见 README 偏差说明）。
+// 该字段集同时也是请求收参契约，但主键与审计字段一律由服务端生成
+// （不接受客户端指定 id/createBy/updateBy/createdAt/updatedAt/version）。
 type AdminDictEntity struct {
 	ID        string  `json:"id"`
 	IsDeleted *int    `json:"isDeleted"`
@@ -91,8 +91,8 @@ type DictDataVO struct {
 
 // DictSavePayload。
 //
-// 只保留可写业务字段：侧允许客户端注入 id/createBy/version（契约清单 §3.4 S7 的已知问题），
-// Go 侧不接受这些字段（主键与审计字段一律服务端生成），差异记录在 README。
+// 只保留可写业务字段：主键与审计字段（id/createBy/updateBy/createdAt/
+// updatedAt/version）一律服务端生成，不接受客户端传入。
 type DictSavePayload struct {
 	Code        *string     `json:"code"`
 	Name        *string     `json:"name"`

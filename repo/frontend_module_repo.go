@@ -19,7 +19,7 @@ func NewFrontendModuleRepo(db DBTX) *MySQLFrontendModuleRepo {
 	return &MySQLFrontendModuleRepo{db: db}
 }
 
-// moduleColumns 与 MyBatis-Plus 默认查询列一致（排除 is_deleted/create_by/update_by）。
+// moduleColumns 是前端模块查询列清单，不含 is_deleted/create_by/update_by。
 const moduleColumns = `id, module_code, name, release_version, contract_version, manifest_path,
 	fallback_version, fallback_manifest_path, status, sort_order, created_at, updated_at, version`
 
@@ -70,7 +70,7 @@ func (r *MySQLFrontendModuleRepo) ListModules(ctx context.Context, moduleCode st
 	return out, nil
 }
 
-// FindModuleByID 实现 FrontendModuleRepo（selectById）。
+// FindModuleByID 实现 FrontendModuleRepo（WHERE id=? AND is_deleted=0）。
 func (r *MySQLFrontendModuleRepo) FindModuleByID(ctx context.Context, id string) (*domain.FrontendModuleRecord, error) {
 	query := "SELECT " + moduleColumns + " FROM t_acat_frontend_module WHERE id = ? AND is_deleted = 0"
 	record, err := scanModuleRecord(r.db.QueryRowContext(ctx, query, id).Scan)
@@ -80,7 +80,7 @@ func (r *MySQLFrontendModuleRepo) FindModuleByID(ctx context.Context, id string)
 	return record, nil
 }
 
-// FindModuleByCodeAndVersion 实现 FrontendModuleRepo（selectOne(moduleCode, releaseVersion)）。
+// FindModuleByCodeAndVersion 实现 FrontendModuleRepo（按 module_code + release_version 查单条）。
 func (r *MySQLFrontendModuleRepo) FindModuleByCodeAndVersion(ctx context.Context, moduleCode, releaseVersion string) (*domain.FrontendModuleRecord, error) {
 	query := "SELECT " + moduleColumns +
 		" FROM t_acat_frontend_module WHERE module_code = ? AND release_version = ? AND is_deleted = 0 LIMIT 1"
@@ -91,7 +91,7 @@ func (r *MySQLFrontendModuleRepo) FindModuleByCodeAndVersion(ctx context.Context
 	return record, nil
 }
 
-// InsertModule 实现 FrontendModuleRepo（myInsert）。
+// InsertModule 实现 FrontendModuleRepo（is_deleted=0，审计字段由 service 填充）。
 func (r *MySQLFrontendModuleRepo) InsertModule(ctx context.Context, record domain.FrontendModuleRecord) error {
 	const query = `INSERT INTO t_acat_frontend_module
 		(id, module_code, name, release_version, contract_version, manifest_path,
@@ -105,7 +105,7 @@ func (r *MySQLFrontendModuleRepo) InsertModule(ctx context.Context, record domai
 	return wrapError("新增前端模块失败", err)
 }
 
-// UpdateModule 实现 FrontendModuleRepo（updateById + 乐观锁，返回影响行数）。
+// UpdateModule 实现 FrontendModuleRepo（乐观锁：WHERE id=? AND version=? AND is_deleted=0，返回影响行数）。
 //
 // publish 依赖该行数判定 40901。
 func (r *MySQLFrontendModuleRepo) UpdateModule(ctx context.Context, record domain.FrontendModuleRecord) (int64, error) {
@@ -161,7 +161,7 @@ func (r *MySQLFrontendModuleRepo) ListEnabledModuleCodes(ctx context.Context) ([
 	return out, nil
 }
 
-// CountEnabledModuleByCode 实现 FrontendModuleRepo（validatePageSource 的 selectCount）。
+// CountEnabledModuleByCode 实现 FrontendModuleRepo（统计指定模块码的启用版本数）。
 func (r *MySQLFrontendModuleRepo) CountEnabledModuleByCode(ctx context.Context, moduleCode string) (int64, error) {
 	const query = `SELECT COUNT(*) FROM t_acat_frontend_module
 		WHERE is_deleted = 0 AND module_code = ? AND status = ?`
@@ -173,7 +173,7 @@ func (r *MySQLFrontendModuleRepo) CountEnabledModuleByCode(ctx context.Context, 
 }
 
 // ListEnabledModulesByCodes 实现 FrontendModuleRepo
-// （AdminFrontendModuleMapper.selectEnabledByCodes：每个 module_code 取 sort_order/updated_at/created_at 最优的一条）。
+// 每个 module_code 取 sort_order/updated_at/created_at 最优的一条（ROW_NUMBER 窗口排序）。
 func (r *MySQLFrontendModuleRepo) ListEnabledModulesByCodes(ctx context.Context, codes []string) ([]domain.FrontendModuleRecord, error) {
 	if len(codes) == 0 {
 		return []domain.FrontendModuleRecord{}, nil

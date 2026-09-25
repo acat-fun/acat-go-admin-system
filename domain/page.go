@@ -5,12 +5,10 @@ import (
 	"strings"
 )
 
-// 本文件对应 侧页面域实体与视图：
-//   - AdminPageEntity        (fun.acat.admin.entity.AdminPageEntity, 表 t_acat_page)
-//   - AdminPageHistoryEntity (fun.acat.admin.system.entity.AdminPageHistoryEntity, 表 t_acat_page_history)
-//   - PageVO                 (fun.acat.admin.vo.PageVO)
+// 本文件定义页面域的实体与视图：页面（表 t_acat_page）、
+// 页面变更快照（表 t_acat_page_history）与 PageVO。
 
-// 页面类型（AdminPageEntity.TYPE_*）。
+// 页面类型。
 const (
 	PageTypeNav    = 0
 	PageTypeFolder = 1
@@ -47,7 +45,7 @@ type AdminPageEntity struct {
 // PageSavePayload。
 //
 // 只保留可写业务字段：code 由 path 派生，scope 强制 0，
-// id/createBy/updateBy/version/isDeleted 不接受客户端传入（差异见 README）。
+// id/createBy/updateBy/version/isDeleted 不接受客户端传入。
 type PageSavePayload struct {
 	Name               *string     `json:"name"`
 	Type               *int        `json:"type"`

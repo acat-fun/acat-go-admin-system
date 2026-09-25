@@ -1,12 +1,12 @@
 // Package notification 提供站内通知域（t_acat_notification 表）的通用实现。
 //
-// 契约对齐 acat 管理端消息铃铛（U10-U12）：
+// 对外契约（acat 管理端消息铃铛）：
 //   - GET  /notifications?countOnly=true&status=unread → data 为未读数（Integer）；
 //   - GET  /notifications?pageIndex&pageSize           → data 为分页列表；
 //   - PATCH /notifications/{id} body {isRead:true}      → 标记单条已读；
 //   - PATCH /notifications    body {isRead:true}        → 全部已读。
 //
-// 各端（acat-admin、devops）把 handler 挂到自己的路由前缀下即可获得一致的
+// 各端把 handler 挂到自己的路由前缀下即可获得一致的
 // 铃铛后端能力；存储直接使用 acat_user.t_acat_notification 表。
 package notification
 
@@ -24,7 +24,7 @@ const TableNotification = "t_acat_notification"
 // DefaultPageSize 是分页缺省页大小。
 const DefaultPageSize = 20
 
-// Item 是通知条目（U10 列表元素契约，键名与前端 NotificationItem 对齐）。
+// Item 是通知条目（列表元素契约，键名与前端 NotificationItem 对齐）。
 type Item struct {
 	ID        string `json:"id"`
 	BookID    string `json:"bookId"`

@@ -2,9 +2,8 @@ package domain
 
 // I18nValue 是多语言值（字段名 i18n/value）。
 //
-// 注意：侧 PageVO.i18nValue 在 bootstrap 链路中始终为 null
-// （AdminViewAssembler.toPageVO 传入 entity.getI18nValue()，而该字段是
-// @TableField(exist=false) 且没有任何装配点），Go 侧保持同样的 null 以对齐契约。
+// 注意：bootstrap 链路输出的 PageVO.i18nValue 始终为 null（无装配点），
+// 契约保持该 null 以对齐前端预期。
 type I18nValue struct {
 	I18n  string `json:"i18n"`
 	Value string `json:"value"`
@@ -33,10 +32,9 @@ type PageVO struct {
 	UpdatedAt          *string     `json:"updatedAt"`
 }
 
-// FrontendModuleDescriptor。
+// FrontendModuleDescriptor 是登录启动数据里的前端模块描述符。
 //
-// FallbackManifestURL：null 直接透传
-// entity.getFallbackManifestPath()，库列为 NULL 时 JSON 输出 null，Go 侧必须一致。
+// FallbackManifestURL 直接透传库列的可空值：库列为 NULL 时 JSON 输出 null。
 type FrontendModuleDescriptor struct {
 	ModuleCode          string  `json:"moduleCode"`
 	Version             string  `json:"version"`

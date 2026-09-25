@@ -1,19 +1,16 @@
 // Package logic 提供管理端权限判定与权限码常量。
 //
-// Go 侧当前没有 URL 级权限拦截器，
-// 因此由 httpapi 显式调用本包的 Checker/Actor 完成同样的判定：
+// 本服务没有 URL 级权限拦截器，
+// 因此由 httpapi 显式调用本包的 Checker/Actor 完成判定：
 // root（loginID=="0"）直接放行，其余读会话 permissions 快照，不通过返回 403。
-//
-// 与 admin-user 的 internal/logic 完全同构（迁移期两服务各自持有副本，
-// 待公共库提供通用的管理端权限判定后再合并）。
 package logic
 
 // 权限码常量注册表。
 //
-// 本服务只登记 admin-system 域实际用到的常量（侧常量类是全平台共用的，
-// Go 侧按服务裁剪，避免出现本服务无法判定的悬挂常量）。
+// 本文件只登记 admin-system 域实际用到的常量，
+// 避免出现本服务无法判定的悬挂常量。
 //
-// 新增权限的完整流程：1) 在此登记常量；2) 在 deploy/sql 的 seed 中补对应
+// 新增权限的完整流程：1) 在此登记常量；2) 在数据库基线仓的 seed 中补对应
 // 权限码（页面码入 t_acat_page、按钮码入 t_acat_permission）；3) 前端 permissionRegistry.ts 登记。
 const (
 	// ---- 字典 ----
@@ -23,7 +20,7 @@ const (
 	SystemDictsDelete = "acat:admin:system:dicts:delete" // DELETE /dicts/{id} 等
 
 	// ---- 国际化语言类型 ----
-	SystemI18nTypes       = "acat:admin:system:i18n-types"        // 页面码（本服务仅登录校验，无注解）
+	SystemI18nTypes       = "acat:admin:system:i18n-types"        // 页面码（本服务仅登录校验，无权限码判定）
 	SystemI18nTypesCreate = "acat:admin:system:i18n-types:create" // POST /i18n/types
 	SystemI18nTypesEdit   = "acat:admin:system:i18n-types:edit"   // PUT /i18n/types/{id}
 	SystemI18nTypesDelete = "acat:admin:system:i18n-types:delete" // DELETE /i18n/types/{id}
@@ -52,9 +49,9 @@ const (
 	SystemFilesDelete = "acat:admin:system:files:delete"
 )
 
-// 与
+// 权限判定的提示文案与角色编码。
 const (
-	// MessageForbidden 无权限统一提示（Sa-Token NotPermissionException 的 Go 口径）。
+	// MessageForbidden 无权限统一提示（Sa-Token 会话权限不足的提示文案）。
 	MessageForbidden = "无操作权限"
 	// RoleCodeRoot root 角色编码。
 	RoleCodeRoot = "root"

@@ -15,23 +15,23 @@ import (
 // 与认证用的 WorkerRepo 分开：管理接口需要 email/avatar 的可空语义与 created_at/updated_at，
 // 而认证链路只用 id/username/password/email/avatar/status。
 type AdminWorkerRepo interface {
-	// List 分页查询（WorkerAdminServiceImpl.listWorkers）：keyword 对 username/email 做 LIKE，ORDER BY id ASC。
+	// List 分页查询：keyword 对 username/email 做 LIKE，ORDER BY id ASC。
 	List(ctx context.Context, keyword string, offset, limit int) ([]domain.AdminWorker, int64, error)
-	// FindByUsername 按用户名查询（WorkerMapper.selectByUsername）。
+	// FindByUsername 按用户名查询未删除工作人员。
 	FindByUsername(ctx context.Context, username string) (*domain.AdminWorker, error)
-	// FindByID 按主键查询未删除工作人员（selectById + @TableLogic）。
+	// FindByID 按主键查询未删除工作人员。
 	FindByID(ctx context.Context, id string) (*domain.AdminWorker, error)
-	// Insert 新增（myInsert：is_deleted=0 + created_at/updated_at）。
+	// Insert 新增工作人员（is_deleted=0，写入 created_at/updated_at）。
 	Insert(ctx context.Context, worker *domain.AdminWorker) error
-	// Update 按主键更新（myUpdate）。
+	// Update 按主键更新工作人员。
 	Update(ctx context.Context, worker *domain.AdminWorker) (int64, error)
-	// SoftDelete 软删除（myDelete → is_deleted=1）。
+	// SoftDelete 软删除工作人员（is_deleted=1）。
 	SoftDelete(ctx context.Context, id string) (int64, error)
-	// RoleCodes 查询启用角色编码（WorkerMapper.selectRolesByUserId）。
+	// RoleCodes 查询启用角色编码。
 	RoleCodes(ctx context.Context, userID string) ([]string, error)
-	// SoftDeleteRoles 软删除全部角色关联（WorkerMapper.deleteUserRoles）。
+	// SoftDeleteRoles 软删除全部角色关联。
 	SoftDeleteRoles(ctx context.Context, userID string) (int64, error)
-	// InsertRoles 幂等插入角色关联（WorkerMapper.insertUserRoles）。
+	// InsertRoles 幂等插入角色关联。
 	InsertRoles(ctx context.Context, userID string, roleIDs []string) (int64, error)
 }
 
@@ -136,7 +136,7 @@ func (r *MySQLAdminWorkerRepo) Insert(ctx context.Context, worker *domain.AdminW
 	return nil
 }
 
-// Update 实现 AdminWorkerRepo（updateById + @TableLogic）。
+// Update 实现 AdminWorkerRepo（WHERE id=? AND is_deleted=0）。
 func (r *MySQLAdminWorkerRepo) Update(ctx context.Context, worker *domain.AdminWorker) (int64, error) {
 	const query = `
 		UPDATE t_acat_user_worker
@@ -160,7 +160,7 @@ func (r *MySQLAdminWorkerRepo) SoftDelete(ctx context.Context, id string) (int64
 	return result.RowsAffected()
 }
 
-// RoleCodes 实现 AdminWorkerRepo（WorkerMapper.selectRolesByUserId）。
+// RoleCodes 实现 AdminWorkerRepo（仅启用角色）。
 func (r *MySQLAdminWorkerRepo) RoleCodes(ctx context.Context, userID string) ([]string, error) {
 	const query = `
 		SELECT r.code
@@ -173,7 +173,7 @@ func (r *MySQLAdminWorkerRepo) RoleCodes(ctx context.Context, userID string) ([]
 	return queryStrings(ctx, r.db, query, userID)
 }
 
-// SoftDeleteRoles 实现 AdminWorkerRepo（WorkerMapper.deleteUserRoles）。
+// SoftDeleteRoles 实现 AdminWorkerRepo（SET is_deleted=1）。
 func (r *MySQLAdminWorkerRepo) SoftDeleteRoles(ctx context.Context, userID string) (int64, error) {
 	const query = `UPDATE t_acat_user_role SET is_deleted = 1 WHERE user_id = ? AND is_deleted = 0`
 	result, execErr := r.db.ExecContext(ctx, query, userID)
@@ -183,7 +183,7 @@ func (r *MySQLAdminWorkerRepo) SoftDeleteRoles(ctx context.Context, userID strin
 	return result.RowsAffected()
 }
 
-// InsertRoles 实现 AdminWorkerRepo（WorkerMapper.insertUserRoles，幂等恢复软删记录）。
+// InsertRoles 实现 AdminWorkerRepo（幂等恢复软删记录）。
 func (r *MySQLAdminWorkerRepo) InsertRoles(ctx context.Context, userID string, roleIDs []string) (int64, error) {
 	if len(roleIDs) == 0 {
 		return 0, nil

@@ -11,10 +11,9 @@ import (
 
 // registerPageRoutes 注册页面路由。
 //
-// 注意 `@GetMapping(params = "mine=true")` 条件映射：只有 query 参数 mine 恰好为
-// "true" 时才走 getMyMenus（无权限码、仅登录），否则走 list（permissions OR pages）。
-// Go 的 ServeMux 不支持参数条件映射，因此在处理器内分派，语义与 Spring 的
-// ParamsRequestCondition 优先级一致（更具体的条件优先）。
+// GET /pages 有两种形态：仅当 query 参数 mine 恰好为 "true" 时才走
+// 我的菜单树（无权限码、仅登录），否则走配置页面列表（permissions OR pages）。
+// ServeMux 不支持参数条件映射，因此在处理器内分派，且更具体的条件优先。
 func registerPageRoutes(mux *http.ServeMux, auth authMiddleware, a *API) {
 	a.route(mux, "GET "+PathPages, auth, a.handleListPages)
 	a.route(mux, "GET "+PathPageModuleCodes, auth, a.handleEnabledFrontendModuleCodes)
@@ -45,7 +44,7 @@ func (a *API) handleListPages(w http.ResponseWriter, req *http.Request) {
 	writeOK(w, data)
 }
 
-// handleEnabledFrontendModuleCodes 复刻 GET /pages/enabled-frontend-module-codes。
+// handleEnabledFrontendModuleCodes 处理 GET /pages/enabled-frontend-module-codes。
 func (a *API) handleEnabledFrontendModuleCodes(w http.ResponseWriter, req *http.Request) {
 	if !a.requireAnyPermission(w, req, logic.SystemPermissions, logic.SystemPages) {
 		return
@@ -61,7 +60,7 @@ func (a *API) handleEnabledFrontendModuleCodes(w http.ResponseWriter, req *http.
 	writeOK(w, data)
 }
 
-// handleCreatePage 复刻 POST /pages。
+// handleCreatePage 处理 POST /pages。
 func (a *API) handleCreatePage(w http.ResponseWriter, req *http.Request) {
 	if !a.requirePermission(w, req, logic.SystemPagesCreate) {
 		return
@@ -78,7 +77,7 @@ func (a *API) handleCreatePage(w http.ResponseWriter, req *http.Request) {
 	writeOK(w, data)
 }
 
-// handleUpdatePage 复刻 PUT /pages/{id}。
+// handleUpdatePage 处理 PUT /pages/{id}。
 func (a *API) handleUpdatePage(w http.ResponseWriter, req *http.Request) {
 	if !a.requirePermission(w, req, logic.SystemPagesEdit) {
 		return
@@ -95,7 +94,7 @@ func (a *API) handleUpdatePage(w http.ResponseWriter, req *http.Request) {
 	writeOK(w, data)
 }
 
-// handleDeletePage 复刻 DELETE /pages/{id}。
+// handleDeletePage 处理 DELETE /pages/{id}。
 func (a *API) handleDeletePage(w http.ResponseWriter, req *http.Request) {
 	if !a.requirePermission(w, req, logic.SystemPagesDelete) {
 		return

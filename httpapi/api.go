@@ -1,7 +1,6 @@
 // Package httpapi 装配 admin-system 的 HTTP 路由与处理器。
 //
-// 契约来源：（acat-admin-system 章节 §3），
-// 并逐条核对 关键约定：
+// 关键约定：
 //   - 业务失败一律 HTTP 200 + body.code≠0（含前端模块乐观锁 40901）；
 //   - 未登录 401、无权限 403（apperr.Forbidden("无操作权限")）、请求格式错误 400、参数校验失败 422；
 //   - 认证中间件 middleware.Auth（HttpOnly Cookie + satoken 头）；
@@ -45,8 +44,8 @@ const (
 	PathFiles              = "/api/admin/system/files"
 	PathFilesByID          = "/api/admin/system/files/{id}"
 	PathFilesServeByID     = "/api/admin/system/files/s/{id}"
-	// PathAdminPrefix 是整个 /api/admin/** 的兜底模式
-	// addPathPatterns("/api/admin/**") 对未注册路径同样生效，未登录一律 401。
+	// PathAdminPrefix 是整个 /api/admin/** 的兜底模式：
+	// 认证拦截对未注册路径同样生效，未登录一律 401。
 	PathAdminPrefix = "/api/admin/"
 	// PathI18nPublicPrefix 是免登录路径（"/api/admin/system/i18n/public/**") 的
 	// 子树前缀：该子树整段免登录（未注册路径也不要求登录）。

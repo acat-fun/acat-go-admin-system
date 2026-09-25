@@ -554,7 +554,7 @@ func actorWith(loginID string, permissions ...string) *logic.Actor {
 	session.LoginID = loginID
 	session.Set(satoken.DataKeyPermissions, permissions)
 	if loginID == domain.RootLoginID {
-		// 迁移期测试便利：root 登录 id 的会话补 root 角色（生产路径由 buildBootstrap 写入）。
+		// 测试便利：root 登录 id 的会话补 root 角色（生产路径由 buildBootstrap 写入）。
 		session.Set(satoken.DataKeyRoles, []string{domain.RootRoleID})
 	}
 	ctx := middleware.WithSession(context.Background(), session, "token-value")

@@ -8,7 +8,7 @@
 //   - 主键：UUID v7（domain.NewID()）。
 //
 // 外部依赖（MongoDB / 对象存储）不在此包：分别通过 AuditLogStore 与 storage.ObjectStorage
-// 接口隔离，默认提供内存实现（本机无 Mongo/MinIO）。
+// 接口隔离，默认提供内存实现（无 Mongo/MinIO 的环境）。
 package repo
 
 import (
@@ -22,8 +22,8 @@ import (
 )
 
 // DBTX 是 *sql.DB 与 *sql.Tx 的公共能力子集：repo 只通过它访问数据库，
-// 因此 service 层把事务放进 context 后，同一用例内的多次调用自动落在同一事务里
-// （规范 §8.7：Repository 不得隐式创建独立事务）。
+// 因此 service 层把事务放进 context 后，同一用例内的多次调用自动落在同一事务里。
+// Repository 不自行开启事务，事务边界一律由 service 层决定。
 type DBTX interface {
 	// ExecContext 执行不返回结果集的语句。
 	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
@@ -36,9 +36,7 @@ type DBTX interface {
 // ErrNotFound 表示查询无结果。
 var ErrNotFound = errors.New("repo: 记录不存在")
 
-// ErrMultipleResults 对应 MyBatis-Plus selectOne 的 TooManyResultsException。
-//
-// (code, scope)；同 code 跨 scope 两行 → 500。
+// ErrMultipleResults 表示期望单条结果但匹配到多条（如 (code, scope) 同码跨 scope 两行）。
 var ErrMultipleResults = errors.New("repo: 期望单条结果但匹配到多条")
 
 // DictRepo 提供字典定义与字典数据项的数据访问。
@@ -51,11 +49,11 @@ type DictRepo interface {
 	ListDictsForSelect(ctx context.Context) ([]domain.DictRecord, error)
 	// CountDataItemsByDictID 统计字典下未删除的数据项。
 	CountDataItemsByDictID(ctx context.Context, dictID string) (int64, error)
-	// FindDictByID 按主键查询字典（selectById，带 is_deleted=0）。
+	// FindDictByID 按主键查询字典（带 is_deleted=0）。
 	FindDictByID(ctx context.Context, id string) (*domain.DictRecord, error)
-	// FindDictByCode 按 code 查询单条字典（selectOne(eq(code))）。
+	// FindDictByCode 按 code 查询单条字典。
 	FindDictByCode(ctx context.Context, code string) (*domain.DictRecord, error)
-	// CountDictsByCode 统计同 code 未删除字典数（createDict 唯一性预检）。
+	// CountDictsByCode 统计同 code 未删除字典数（新增字典的唯一性预检）。
 	CountDictsByCode(ctx context.Context, code string) (int64, error)
 	// InsertDict 新增字典。
 	InsertDict(ctx context.Context, record domain.DictRecord) error
@@ -71,14 +69,13 @@ type DictRepo interface {
 	ListAllDataItems(ctx context.Context, dictID string, isEnabled *int) ([]domain.DictDataRecord, error)
 	// FindDataItemByID 按主键查询数据项。
 	FindDataItemByID(ctx context.Context, id string) (*domain.DictDataRecord, error)
-	// ListChildDataItems 查询指定父级下的子数据项（deleteDataItem 级联用，无 ORDER BY）。
+	// ListChildDataItems 查询指定父级下的子数据项（删除数据项级联用，无 ORDER BY）。
 	ListChildDataItems(ctx context.Context, dictID, parentID string) ([]domain.DictDataRecord, error)
 	// InsertDataItem 新增数据项。
 	InsertDataItem(ctx context.Context, record domain.DictDataRecord) error
 	// UpdateDataItem 更新数据项（乐观锁），返回影响行数。
 	UpdateDataItem(ctx context.Context, record domain.DictDataRecord) (int64, error)
-	// UpdateDataItemByID 按主键更新数据项（不带乐观锁条件），
-	// 对应
+	// UpdateDataItemByID 按主键更新数据项（不带乐观锁条件），返回影响行数。
 	UpdateDataItemByID(ctx context.Context, record domain.DictDataRecord) (int64, error)
 	// SoftDeleteDataItem 软删除数据项。
 	SoftDeleteDataItem(ctx context.Context, id string) (int64, error)
@@ -100,17 +97,17 @@ type LabelRepo interface {
 
 // PageRepo 提供页面与页面历史的数据访问。
 type PageRepo interface {
-	// ListPagesByScope 按 scope 查询页面并按 i18n 回退名称（AdminPageMapper.selectByScope）。
+	// ListPagesByScope 按 scope 查询页面并按 i18n 回退名称。
 	ListPagesByScope(ctx context.Context, scope int, i18nCode string) ([]domain.PageRecord, error)
-	// ListPagesByParentID 按父级查询子页面（AdminPageMapper.selectByParentId）。
+	// ListPagesByParentID 按父级查询子页面。
 	ListPagesByParentID(ctx context.Context, parentID, i18nCode string) ([]domain.PageRecord, error)
 	// FindPageByID 按主键查询页面。
 	FindPageByID(ctx context.Context, id string) (*domain.PageRecord, error)
-	// FindPageByCode 按 code 查询未删除页面（AdminPageMapper.selectByCode）。
+	// FindPageByCode 按 code 查询未删除页面。
 	FindPageByCode(ctx context.Context, code string) (*domain.PageRecord, error)
-	// FindDeletedPageByCode 按 code 查询已删除页面（AdminPageMapper.selectDeletedByCode）。
+	// FindDeletedPageByCode 按 code 查询已删除页面。
 	FindDeletedPageByCode(ctx context.Context, code string) (*domain.PageRecord, error)
-	// RestoreDeletedPage 恢复已删除页面（AdminPageMapper.restoreDeleted，绕过逻辑删除条件）。
+	// RestoreDeletedPage 恢复已删除页面（不带逻辑删除条件）。
 	RestoreDeletedPage(ctx context.Context, record domain.PageRecord) (int64, error)
 	// InsertPage 新增页面。
 	InsertPage(ctx context.Context, record domain.PageRecord) error
@@ -118,9 +115,9 @@ type PageRepo interface {
 	UpdatePage(ctx context.Context, record domain.PageRecord) (int64, error)
 	// SoftDeletePage 软删除页面。
 	SoftDeletePage(ctx context.Context, id string) (int64, error)
-	// SelectPageIDsByPermissions 按权限码反查页面 id（AdminPageMapper.selectPageIdsByPermissions）。
+	// SelectPageIDsByPermissions 按权限码反查页面 id。
 	SelectPageIDsByPermissions(ctx context.Context, permissions []string) ([]string, error)
-	// InsertPageHistory 写入页面变更快照（AdminPageHistoryMapper.insert）。
+	// InsertPageHistory 写入页面变更快照。
 	InsertPageHistory(ctx context.Context, record domain.PageHistoryRecord) error
 	// GrantPageToRootAndAdmin 为 root/admin 角色授权页面（幂等）。
 	GrantPageToRootAndAdmin(ctx context.Context, pageID string) error
@@ -136,7 +133,7 @@ type FrontendModuleRepo interface {
 	ListModules(ctx context.Context, moduleCode string) ([]domain.FrontendModuleRecord, error)
 	// FindModuleByID 按主键查询前端模块。
 	FindModuleByID(ctx context.Context, id string) (*domain.FrontendModuleRecord, error)
-	// FindModuleByCodeAndVersion 按 (moduleCode, releaseVersion) 查询（selectOne）。
+	// FindModuleByCodeAndVersion 按 (moduleCode, releaseVersion) 查询单条模块。
 	FindModuleByCodeAndVersion(ctx context.Context, moduleCode, releaseVersion string) (*domain.FrontendModuleRecord, error)
 	// InsertModule 新增前端模块。
 	InsertModule(ctx context.Context, record domain.FrontendModuleRecord) error
@@ -144,9 +141,9 @@ type FrontendModuleRepo interface {
 	UpdateModule(ctx context.Context, record domain.FrontendModuleRecord) (int64, error)
 	// DisableOtherEnabledVersions 停用同模块的其他启用版本。
 	DisableOtherEnabledVersions(ctx context.Context, moduleCode, keepID string) error
-	// ListEnabledModuleCodes 查询全部启用模块代码（无 ORDER BY，允许重复。
+	// ListEnabledModuleCodes 查询全部启用模块代码（无 ORDER BY，允许重复）。
 	ListEnabledModuleCodes(ctx context.Context) ([]string, error)
-	// CountEnabledModuleByCode 统计指定模块码的启用版本数（validatePageSource 用）。
+	// CountEnabledModuleByCode 统计指定模块码的启用版本数（页面引用校验用）。
 	CountEnabledModuleByCode(ctx context.Context, moduleCode string) (int64, error)
 	// ListEnabledModulesByCodes 查询指定模块代码下的启用版本（每模块取排序最优的一条）。
 	ListEnabledModulesByCodes(ctx context.Context, codes []string) ([]domain.FrontendModuleRecord, error)
@@ -193,7 +190,7 @@ var (
 	_ AuditLogStore      = (*MemoryAuditLogStore)(nil)
 )
 
-// formatTime 把时间列转换为 时间文本。
+// formatTime 把时间列转换为 时间文本（秒精度）。
 func formatTime(value time.Time) string {
 	return domain.FormatDateTime(value)
 }

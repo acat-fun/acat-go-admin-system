@@ -83,7 +83,7 @@ func queryPage(req *http.Request) (int, int) {
 	return result.NormalizePage(pageIndex, pageSize)
 }
 
-// queryInt 读取整型查询参数，缺失或非法时取默认值（Spring 对非法值会 400，此处按缺省处理）。
+// queryInt 读取整型查询参数，缺失或非法时取默认值（非法值不报错，按缺省处理）。
 func queryInt(req *http.Request, name string, fallback int) int {
 	raw := strings.TrimSpace(req.URL.Query().Get(name))
 	if raw == "" {
@@ -96,7 +96,7 @@ func queryInt(req *http.Request, name string, fallback int) int {
 	return value
 }
 
-// queryBool 按 Spring StringToBooleanConverter 口径解析布尔查询参数（true/on/yes/1）。
+// queryBool 解析布尔查询参数（true/on/yes/1 为真，其余为假）。
 func queryBool(req *http.Request, name string) bool {
 	switch strings.ToLower(strings.TrimSpace(req.URL.Query().Get(name))) {
 	case "true", "on", "yes", "1":

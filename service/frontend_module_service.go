@@ -106,7 +106,7 @@ func (s *Service) UpdateFrontendModule(ctx context.Context, id string, param dom
 	if _, err := s.modules.UpdateModule(ctx, *record); err != nil {
 		return nil, err
 	}
-	// MyBatis-Plus 乐观锁把新版本号写回内存实体。
+	// 乐观锁更新成功后把新版本号写回内存实体。
 	record.Version++
 	vo := record.ToVO()
 	return &vo, nil

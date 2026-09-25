@@ -4,11 +4,10 @@ import "time"
 
 // 本文件定义 repo 层返回的“数据库行”读模型。
 //
-// 为什么不直接用实体结构体：侧用同一个 Entity 承担“表行 + 请求体 + 响应体”三种角色，
-// Go 侧拆成三层更清晰：
+// 实体结构体只承担 HTTP 契约，数据库行则由 Record 类型承载，两层职责分离：
 //   - *Record：数据库行（时间用 time.Time，未删除标记不暴露）
 //   - 实体/VO：HTTP 契约（时间已格式化为 时间文本）
-// 字段语义与 DB 列一一对应，SQL 出处写在各 repo 方法注释里。
+// 字段语义与 DB 列一一对应。
 
 // DictRecord 是 t_acat_dict 的一行。
 type DictRecord struct {
@@ -81,7 +80,7 @@ type I18nTypeRecord struct {
 	Version   int
 }
 
-// FrontendLabelRecord 是前端运行时代码字典的一行（对应 I18nLabelMapper.selectFrontendLabels）。
+// FrontendLabelRecord 是前端运行时代码字典的一行（dict_data.code → label_value）。
 type FrontendLabelRecord struct {
 	// Code 是 t_acat_dict_data.code（Map 的 key）。
 	Code string
@@ -106,9 +105,9 @@ type PageRecord struct {
 	CreatedAt          time.Time
 	UpdatedAt          time.Time
 	Version            int
-	// IsDeleted 仅 restoreDeleted 路径读出的历史行使用。
+	// IsDeleted 仅读取已软删除行（页面恢复路径）时使用。
 	IsDeleted int
-	// CreateBy/UpdateBy 仅历史快照使用。
+	// CreateBy/UpdateBy 仅写入变更快照时使用。
 	CreateBy *string
 	UpdateBy *string
 }

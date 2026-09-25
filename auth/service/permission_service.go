@@ -23,7 +23,7 @@ const (
 	MessagePermissionCodeExists = "权限标识已存在"
 )
 
-// ListPermissions 复刻 PermissionServiceImpl.listAll：按 id 升序返回实体列表。
+// ListPermissions 按 id 升序返回权限实体列表。
 func (s *Service) ListPermissions(ctx context.Context) ([]domain.AdminPermissionEntity, error) {
 	permissions, err := s.listAllPermissions(ctx)
 	if err != nil {
@@ -36,7 +36,7 @@ func (s *Service) ListPermissions(ctx context.Context) ([]domain.AdminPermission
 	return out, nil
 }
 
-// ListPermissionsAsVO 复刻 PermissionServiceImpl.listAsVO（format=tree，扁平结构）。
+// ListPermissionsAsVO 返回权限视图列表（format=tree 时为扁平结构，不嵌套）。
 func (s *Service) ListPermissionsAsVO(ctx context.Context) ([]domain.PermissionVO, error) {
 	permissions, err := s.listAllPermissions(ctx)
 	if err != nil {
@@ -54,7 +54,7 @@ func (s *Service) ListPermissionsAsVO(ctx context.Context) ([]domain.PermissionV
 	return out, nil
 }
 
-// CreatePermission 复刻 PermissionServiceImpl.create：
+// CreatePermission 新增权限：
 // 同 code 存在已软删记录则恢复（更新 name/page_id），否则校验 code 唯一后插入。
 func (s *Service) CreatePermission(ctx context.Context, dto domain.PermissionSaveDTO) (domain.AdminPermissionEntity, error) {
 	if s.permissionRepo == nil {
@@ -107,7 +107,7 @@ func (s *Service) CreatePermission(ctx context.Context, dto domain.PermissionSav
 	return toAdminPermissionEntity(*permission), nil
 }
 
-// UpdatePermission 复刻 PermissionServiceImpl.update：
+// UpdatePermission 更新权限：
 // code/name 必填且唯一（排除自身），pageId 非空才更新。
 func (s *Service) UpdatePermission(ctx context.Context, id string, dto domain.PermissionSaveDTO) (domain.AdminPermissionEntity, error) {
 	if s.permissionRepo == nil {
@@ -150,7 +150,7 @@ func (s *Service) UpdatePermission(ctx context.Context, id string, dto domain.Pe
 	return toAdminPermissionEntity(*existing), nil
 }
 
-// DeletePermission 复刻 PermissionServiceImpl.delete：软删除。
+// DeletePermission 软删除权限。
 func (s *Service) DeletePermission(ctx context.Context, id string) error {
 	if s.permissionRepo == nil {
 		return fmt.Errorf("service: 权限数据访问未注入")

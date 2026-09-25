@@ -14,7 +14,7 @@ type MySQLFileRepo struct {
 // NewFileRepo 构造 MySQL 实现。
 func NewFileRepo(db DBTX) *MySQLFileRepo { return &MySQLFileRepo{db: db} }
 
-// fileColumns 与 MyBatis-Plus 默认查询列一致（排除 is_deleted/create_by/update_by）。
+// fileColumns 是文件查询列清单，不含 is_deleted/create_by/update_by。
 const fileColumns = "id, name, path, type, file_type, size, created_at, updated_at"
 
 // ListFiles 实现 FileRepo。
@@ -54,7 +54,7 @@ func (r *MySQLFileRepo) ListFiles(ctx context.Context, fileType string, pageInde
 	return out, total, nil
 }
 
-// FindFileByID 实现 FileRepo（selectById）。
+// FindFileByID 实现 FileRepo（WHERE id=? AND is_deleted=0）。
 func (r *MySQLFileRepo) FindFileByID(ctx context.Context, id string) (*domain.FileRecord, error) {
 	query := "SELECT " + fileColumns + " FROM t_acat_file WHERE id = ? AND is_deleted = 0"
 	var record domain.FileRecord
@@ -66,7 +66,7 @@ func (r *MySQLFileRepo) FindFileByID(ctx context.Context, id string) (*domain.Fi
 	return &record, nil
 }
 
-// InsertFile 实现 FileRepo（myInsert）。
+// InsertFile 实现 FileRepo（is_deleted=0）。
 func (r *MySQLFileRepo) InsertFile(ctx context.Context, record domain.FileRecord) error {
 	const query = `INSERT INTO t_acat_file
 		(id, name, path, type, file_type, size, is_deleted, created_at, updated_at, version)
@@ -76,7 +76,7 @@ func (r *MySQLFileRepo) InsertFile(ctx context.Context, record domain.FileRecord
 	return wrapError("新增文件记录失败", err)
 }
 
-// SoftDeleteFile 实现 FileRepo（deleteById）。
+// SoftDeleteFile 实现 FileRepo（逻辑删除）。
 func (r *MySQLFileRepo) SoftDeleteFile(ctx context.Context, id string) (int64, error) {
 	const query = `UPDATE t_acat_file SET is_deleted = 1, updated_at = ? WHERE id = ? AND is_deleted = 0`
 	result, err := r.db.ExecContext(ctx, query, domain.Now(), id)

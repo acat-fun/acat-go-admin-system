@@ -125,7 +125,7 @@ func (s *Service) DeleteFile(ctx context.Context, id string, removeFromStorage b
 
 // OpenObject 读取文件对象字节流（供 GET /{id} 与 GET /s/{id} 裸流输出）。
 //
-// Go 侧同样返回 500，由 httpapi 写出 `{"code":500,"msg":"获取文件流失败"}`。
+// 读取失败返回内部错误，由 httpapi 写出 `{"code":500,"msg":"获取文件流失败"}`。
 func (s *Service) OpenObject(ctx context.Context, file domain.File) ([]byte, error) {
 	location, err := domain.ResolveStorageLocation(file.Path, s.objects.DefaultBucket())
 	if err != nil {

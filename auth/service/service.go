@@ -1,6 +1,6 @@
 // Package service 实现 admin-user 的认证与权限装配业务逻辑。
 //
-// 与 侧 WorkerAuthServiceImpl 一一对应：登录校验、启动数据（bootstrap）装配、
+// 职责：登录校验、启动数据（bootstrap）装配、
 // 页面树构建与前端模块过滤。
 package service
 
@@ -21,7 +21,7 @@ import (
 	"github.com/acat-fun/acat-go-common/satoken"
 )
 
-// 与
+// 业务失败提示文案。
 const (
 	// MessageInvalidCredential 登录失败统一文案（用户不存在/禁用/密码错都是它）。
 	MessageInvalidCredential = "用户名或密码错误"
@@ -42,7 +42,7 @@ type TxRunner interface {
 
 // ErrVersionConflict 表示写操作未命中任何行（并发冲突 / 记录已被改动或删除）。
 //
-// 内部哨兵：对外响应由调用方选择语义错误（见规范 §8.8.1）。
+// 内部哨兵：对外响应由调用方选择语义错误。
 var ErrVersionConflict = errors.New("service: 写入未命中任何行")
 
 // 写日志用的表名（仅用于结构化日志与错误定位，不参与 SQL）。
@@ -251,7 +251,7 @@ func (s *Service) Logout(ctx context.Context, token string) error {
 	return s.satoken.Logout(ctx, token)
 }
 
-// buildBootstrap 复刻 WorkerAuthServiceImpl.buildBootstrapVO。
+// buildBootstrap 装配登录后的启动数据（会话、页面树与前端模块清单）。
 func (s *Service) buildBootstrap(ctx context.Context, worker *domain.Worker) (domain.Bootstrap, error) {
 	// 超管判定统一按角色：roles 含 root 即超管（全量权限/全量页面），不再按登录 id 特判。
 	roles, err := s.workers.RoleCodes(ctx, worker.ID)
@@ -342,7 +342,7 @@ func (s *Service) urlCodes(ctx context.Context, root bool, userID string) ([]str
 	return s.workers.URLCodes(ctx, userID)
 }
 
-// loadAccessiblePages 复刻 loadPageEntities：按 scope 拉取启用页面，非 root 按授权码过滤并补全祖先节点。
+// loadAccessiblePages 按 scope 拉取启用页面，非 root 按授权码过滤并补全祖先节点。
 func (s *Service) loadAccessiblePages(ctx context.Context, root bool, urlCodes []string) ([]domain.Page, error) {
 	all, err := s.pages.ListByScope(ctx, PageScopeAdmin, s.i18nCode)
 	if err != nil {

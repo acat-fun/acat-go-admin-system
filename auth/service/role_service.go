@@ -36,7 +36,7 @@ const (
 	resourceTypeButton = 1
 )
 
-// ListRolesForSelect 复刻 RoleServiceImpl.listAllForSelect：
+// ListRolesForSelect 返回下拉用角色列表：
 // label = "名称 (code)"，value = id 字符串。
 func (s *Service) ListRolesForSelect(ctx context.Context) ([]domain.SelectVO, error) {
 	roles, err := s.listAllRoles(ctx)
@@ -53,7 +53,7 @@ func (s *Service) ListRolesForSelect(ctx context.Context) ([]domain.SelectVO, er
 	return options, nil
 }
 
-// ListRolesAll 复刻 RoleServiceImpl.listAll，按 AdminRoleEntity 返回（GET /roles?all=true）。
+// ListRolesAll 按 AdminRoleEntity 返回全量角色（GET /roles?all=true）。
 func (s *Service) ListRolesAll(ctx context.Context) ([]domain.AdminRoleEntity, error) {
 	roles, err := s.listAllRoles(ctx)
 	if err != nil {
@@ -84,7 +84,7 @@ func (s *Service) ListRolesPage(ctx context.Context, pageIndex, pageSize int) (r
 	return result.NewPageData(list, total, pageIndex, pageSize), nil
 }
 
-// CreateRole 复刻 RoleServiceImpl.createRole：status 固定 1，name 优先取 i18nValue 的中文值。
+// CreateRole 新增角色：status 固定 1，name 优先取 i18nValue 的中文值。
 func (s *Service) CreateRole(ctx context.Context, actor *logic.Actor, dto domain.RoleSaveDTO) (domain.WorkerRoleVO, error) {
 	if s.roleRepo == nil {
 		return domain.WorkerRoleVO{}, fmt.Errorf("service: 角色数据访问未注入")
@@ -114,7 +114,7 @@ func (s *Service) CreateRole(ctx context.Context, actor *logic.Actor, dto domain
 	return toWorkerRoleVO(*role), nil
 }
 
-// UpdateRole 复刻 RoleServiceImpl.updateRole：code 不可改，name/description/status 非空才更新。
+// UpdateRole 更新角色：code 不可改，name/description/status 非空才更新。
 func (s *Service) UpdateRole(ctx context.Context, actor *logic.Actor, id string, dto domain.RoleSaveDTO) (domain.WorkerRoleVO, error) {
 	if s.roleRepo == nil {
 		return domain.WorkerRoleVO{}, fmt.Errorf("service: 角色数据访问未注入")
@@ -147,7 +147,7 @@ func (s *Service) UpdateRole(ctx context.Context, actor *logic.Actor, id string,
 	return toWorkerRoleVO(*existing), nil
 }
 
-// DeleteRole 复刻 RoleServiceImpl.deleteRole：root 不可删、admin 仅 root 可删，并清理关联。
+// DeleteRole 删除角色：root 不可删、admin 仅 root 可删，并清理关联。
 func (s *Service) DeleteRole(ctx context.Context, actor *logic.Actor, id string) error {
 	if s.roleRepo == nil {
 		return fmt.Errorf("service: 角色数据访问未注入")
@@ -187,7 +187,7 @@ func (s *Service) DeleteRole(ctx context.Context, actor *logic.Actor, id string)
 	})
 }
 
-// UpdateRoleStatus 复刻 RoleServiceImpl.updateStatus：root 角色不可禁用、状态值仅允许 0/1。
+// UpdateRoleStatus 更新角色状态：root 角色不可禁用、状态值仅允许 0/1。
 func (s *Service) UpdateRoleStatus(ctx context.Context, id string, status *int) error {
 	if s.roleRepo == nil {
 		return fmt.Errorf("service: 角色数据访问未注入")
@@ -218,7 +218,7 @@ func (s *Service) UpdateRoleStatus(ctx context.Context, id string, status *int) 
 	return nil
 }
 
-// ListRolePermissionIDs 复刻 RoleServiceImpl.listPermissionIds：
+// ListRolePermissionIDs 查询角色已分配的权限 id：
 // 角色不存在 → 业务失败；否则返回 t_acat_role_permission 中 is_deleted=0 的权限 id。
 func (s *Service) ListRolePermissionIDs(ctx context.Context, roleID string) ([]string, error) {
 	if s.roleRepo == nil {
@@ -232,7 +232,7 @@ func (s *Service) ListRolePermissionIDs(ctx context.Context, roleID string) ([]s
 	return s.roleRepo.PermissionIDs(ctx, roleID)
 }
 
-// AssignRolePermissions 复刻角色权限分配语义：
+// AssignRolePermissions 分配角色权限：
 // 先软删该角色全部 role_permission，再按“页面/按钮是否存在”分别以 resource_type 0/1 幂等插入，
 // 既不在 t_acat_page 也不在 t_acat_permission 的 id 直接丢弃。
 func (s *Service) AssignRolePermissions(ctx context.Context, roleID string, permissionIDs []string) error {
@@ -335,7 +335,7 @@ func (s *Service) listAllRoles(ctx context.Context) ([]domain.Role, error) {
 	return s.roleRepo.List(ctx)
 }
 
-// resolveRoleName 复刻 RoleServiceImpl 的 I18nLabelRepository.resolveDefaultName 调用（不做 trim）。
+// resolveRoleName 解析角色的缺省展示名（取 zh-CN 标签值，不做 trim）。
 func resolveRoleName(name *string, values []domain.I18nValue) *string {
 	return domain.ResolveDefaultName(name, values)
 }

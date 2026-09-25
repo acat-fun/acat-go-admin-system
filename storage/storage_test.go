@@ -109,7 +109,7 @@ func TestDeriveSigningKeyIsDeterministic(t *testing.T) {
 //   - Authorization 头包含 SigV4 必需字段；
 //   - 404 → ErrObjectNotFound；DELETE 幂等（204）。
 //
-// 注意：这是本地替身服务器，不是真实 MinIO 联调（本机无 MinIO，标注「待 UAT 验证」）。
+// 注意：这是本地替身服务器，不是真实 MinIO 联调。
 func TestS3SignsRequestsAndMapsResponses(t *testing.T) {
 	var (
 		gotAuth   string

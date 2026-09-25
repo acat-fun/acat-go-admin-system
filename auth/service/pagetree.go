@@ -43,7 +43,7 @@ func buildPageNode(page domain.Page, byParent map[string][]domain.Page) domain.P
 	return node
 }
 
-// toPageVO 复刻 AdminViewAssembler.toPageVO 的字段映射与 null 语义。
+// toPageVO 按契约字段映射页面实体，并保持可空字段的 null 语义。
 func toPageVO(page domain.Page) domain.PageVO {
 	return domain.PageVO{
 		ID:                 page.ID,
@@ -66,7 +66,7 @@ func toPageVO(page domain.Page) domain.PageVO {
 }
 
 // nullableDateTime。
-// 有值时输出 ISO "yyyy-MM-ddTHH:mm:ss"（如 "2026-08-01T09:00:57"），零值输出 null。
+// 有值时输出 ISO 时间文本（如 "2026-08-01T09:00:57"），零值输出 null。
 func nullableDateTime(value time.Time) *string {
 	if value.IsZero() {
 		return nil

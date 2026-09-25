@@ -37,9 +37,8 @@ func (c *Checker) CheckPermission(session *satoken.Session, code string) error {
 	return nil
 }
 
-// CheckAnyPermission 判定会话是否具备 codes 中任意一个权限码。
+// CheckAnyPermission 判定会话是否具备 codes 中任意一个权限码（OR 语义）。
 //
-// 对应 @SaCheckPermission(value = {A, B}, mode = SaMode.OR)：
 // root 角色直接放行；codes 为空视为无需权限。
 func (c *Checker) CheckAnyPermission(session *satoken.Session, codes ...string) error {
 	if len(codes) == 0 {

@@ -12,25 +12,25 @@ import (
 
 // ReaderUserRepo 提供读者用户（t_acat_user）管理数据访问。
 //
-// SQL 语句形状保持稳定（测试按字面断言）；。
+// SQL 语句形状保持稳定（测试按字面断言）。
 type ReaderUserRepo interface {
-	// List 分页查询（UserServiceImpl.listUsers）：keyword 对 username/email 做 LIKE，无排序（默认主键序）。
+	// List 分页查询：keyword 对 username/email 做 LIKE。
 	List(ctx context.Context, keyword string, offset, limit int) ([]domain.ReaderUser, int64, error)
-	// FindByUsername 按用户名查询未删除用户（UserMapper.selectByUsername）。
+	// FindByUsername 按用户名查询未删除用户。
 	FindByUsername(ctx context.Context, username string) (*domain.ReaderUser, error)
-	// FindByID 按主键查询未删除用户（@TableLogic + selectById）。
+	// FindByID 按主键查询未删除用户。
 	FindByID(ctx context.Context, id string) (*domain.ReaderUser, error)
-	// Insert 新增（MyBaseMapper.myInsert：is_deleted=0 + created_at/updated_at）。
+	// Insert 新增用户（is_deleted=0，写入 created_at/updated_at）。
 	Insert(ctx context.Context, user *domain.ReaderUser) error
-	// Update 按主键更新（MyBaseMapper.myUpdate）。
+	// Update 按主键更新用户。
 	Update(ctx context.Context, user *domain.ReaderUser) (int64, error)
-	// SoftDelete 软删除（MyBaseMapper.myDelete → is_deleted=1）。
+	// SoftDelete 软删除用户（is_deleted=1）。
 	SoftDelete(ctx context.Context, id string) (int64, error)
-	// RoleCodes 查询用户的启用角色编码（UserMapper.selectRolesByUserId）。
+	// RoleCodes 查询用户的启用角色编码。
 	RoleCodes(ctx context.Context, userID string) ([]string, error)
-	// SoftDeleteRoles 软删除用户全部角色关联（UserMapper.deleteUserRoles）。
+	// SoftDeleteRoles 软删除用户全部角色关联。
 	SoftDeleteRoles(ctx context.Context, userID string) (int64, error)
-	// InsertRoles 幂等插入角色关联（UserMapper.insertUserRoles，ON DUPLICATE KEY UPDATE is_deleted=0）。
+	// InsertRoles 幂等插入角色关联（ON DUPLICATE KEY UPDATE is_deleted=0）。
 	InsertRoles(ctx context.Context, userID string, roleIDs []string) (int64, error)
 }
 
@@ -82,7 +82,7 @@ func (r *MySQLReaderRepo) List(ctx context.Context, keyword string, offset, limi
 	return out, total, nil
 }
 
-// FindByUsername 实现 ReaderUserRepo（UserMapper.selectByUsername）。
+// FindByUsername 实现 ReaderUserRepo（WHERE username=? AND is_deleted=0）。
 func (r *MySQLReaderRepo) FindByUsername(ctx context.Context, username string) (*domain.ReaderUser, error) {
 	query := "SELECT " + readerColumns + " FROM t_acat_user WHERE username = ? AND is_deleted = 0"
 	return r.scanOne(ctx, query, username)
@@ -144,7 +144,7 @@ func (r *MySQLReaderRepo) Insert(ctx context.Context, user *domain.ReaderUser) e
 	return nil
 }
 
-// Update 实现 ReaderUserRepo（updateById + @TableLogic 的 is_deleted=0 条件）。
+// Update 实现 ReaderUserRepo（WHERE id=? AND is_deleted=0）。
 func (r *MySQLReaderRepo) Update(ctx context.Context, user *domain.ReaderUser) (int64, error) {
 	const query = `
 		UPDATE t_acat_user
@@ -158,7 +158,7 @@ func (r *MySQLReaderRepo) Update(ctx context.Context, user *domain.ReaderUser) (
 	return result.RowsAffected()
 }
 
-// SoftDelete 实现 ReaderUserRepo（deleteById → @TableLogic 软删除）。
+// SoftDelete 实现 ReaderUserRepo（逻辑删除：SET is_deleted=1）。
 func (r *MySQLReaderRepo) SoftDelete(ctx context.Context, id string) (int64, error) {
 	const query = `UPDATE t_acat_user SET is_deleted = 1 WHERE id = ? AND is_deleted = 0`
 	result, execErr := r.db.ExecContext(ctx, query, id)
@@ -168,7 +168,7 @@ func (r *MySQLReaderRepo) SoftDelete(ctx context.Context, id string) (int64, err
 	return result.RowsAffected()
 }
 
-// RoleCodes 实现 ReaderUserRepo（UserMapper.selectRolesByUserId：仅启用角色）。
+// RoleCodes 实现 ReaderUserRepo（仅启用角色）。
 func (r *MySQLReaderRepo) RoleCodes(ctx context.Context, userID string) ([]string, error) {
 	const query = `
 		SELECT r.code
@@ -181,7 +181,7 @@ func (r *MySQLReaderRepo) RoleCodes(ctx context.Context, userID string) ([]strin
 	return queryStrings(ctx, r.db, query, userID)
 }
 
-// SoftDeleteRoles 实现 ReaderUserRepo（UserMapper.deleteUserRoles）。
+// SoftDeleteRoles 实现 ReaderUserRepo（SET is_deleted=1）。
 func (r *MySQLReaderRepo) SoftDeleteRoles(ctx context.Context, userID string) (int64, error) {
 	const query = `UPDATE t_acat_user_role SET is_deleted = 1 WHERE user_id = ? AND is_deleted = 0`
 	result, execErr := r.db.ExecContext(ctx, query, userID)
@@ -191,7 +191,7 @@ func (r *MySQLReaderRepo) SoftDeleteRoles(ctx context.Context, userID string) (i
 	return result.RowsAffected()
 }
 
-// InsertRoles 实现 ReaderUserRepo（UserMapper.insertUserRoles，幂等恢复软删记录）。
+// InsertRoles 实现 ReaderUserRepo（幂等恢复软删记录）。
 func (r *MySQLReaderRepo) InsertRoles(ctx context.Context, userID string, roleIDs []string) (int64, error) {
 	if len(roleIDs) == 0 {
 		return 0, nil
@@ -211,7 +211,7 @@ func (r *MySQLReaderRepo) InsertRoles(ctx context.Context, userID string, roleID
 	return result.RowsAffected()
 }
 
-// nullableString 把可空列转换为指针（NULL → nil。
+// nullableString 把可空列转换为指针（NULL → nil）。
 func nullableString(value sql.NullString) *string {
 	if !value.Valid {
 		return nil

@@ -17,25 +17,25 @@ var ErrNotFound = errors.New("repo: 记录不存在")
 
 // WorkerRepo 提供工作人员与权限码查询。
 type WorkerRepo interface {
-	// FindByUsername 按用户名查询未删除的工作人员（WorkerMapper.selectByUsername）。
+	// FindByUsername 按用户名查询未删除的工作人员。
 	FindByUsername(ctx context.Context, username string) (*domain.Worker, error)
 	// FindByID 按 id 查询工作人员（单表主键查询）。
 	FindByID(ctx context.Context, id string) (*domain.Worker, error)
-	// RoleCodes 查询用户的角色标识列表（WorkerMapper.selectRolesByUserId）。
+	// RoleCodes 查询用户的启用角色标识列表。
 	RoleCodes(ctx context.Context, userID string) ([]string, error)
-	// URLAndButtonCodes 查询用户的页面 + 按钮权限码（WorkerMapper.selectPermissionsByUserId）。
+	// URLAndButtonCodes 查询用户的页面 + 按钮权限码。
 	URLAndButtonCodes(ctx context.Context, userID string) ([]string, error)
-	// URLCodes 查询用户可访问的页面编码（WorkerMapper.selectUrlCodesByUserId）。
+	// URLCodes 查询用户可访问的页面编码。
 	URLCodes(ctx context.Context, userID string) ([]string, error)
-	// AllPermissionCodes 查询全量权限码（root 专用，WorkerMapper.selectAllPermissions）。
+	// AllPermissionCodes 查询全量权限码（root 专用）。
 	AllPermissionCodes(ctx context.Context) ([]string, error)
-	// AllURLCodes 查询全量页面编码（root 专用，WorkerMapper.selectAllUrlCodes）。
+	// AllURLCodes 查询全量页面编码（root 专用）。
 	AllURLCodes(ctx context.Context) ([]string, error)
 }
 
 // PageRepo 提供页面查询。
 type PageRepo interface {
-	// ListByScope 按 scope 查询启用页面并做 i18n 名称回退（AdminPageMapper.selectByScope）。
+	// ListByScope 按 scope 查询启用页面并做 i18n 名称回退。
 	ListByScope(ctx context.Context, scope int, i18nCode string) ([]domain.Page, error)
 }
 
@@ -46,8 +46,8 @@ type FrontendModuleRepo interface {
 }
 
 // DBTX 是 *sql.DB 与 *sql.Tx 的公共能力子集：repo 只通过它访问数据库，
-// 因此 service 层把事务放进 context 后，同一用例内的多次调用自动落在同一事务里
-// （规范 §8.7：Repository 不得隐式创建独立事务）。
+// 因此 service 层把事务放进 context 后，同一用例内的多次调用自动落在同一事务里。
+// Repository 不自行开启事务，事务边界一律由 service 层决定。
 type DBTX interface {
 	// ExecContext 执行不返回结果集的语句。
 	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
@@ -98,7 +98,7 @@ func (r *MySQLWorkerRepo) scanWorker(ctx context.Context, query string, args ...
 	return worker, nil
 }
 
-// RoleCodes 实现 WorkerRepo（WorkerMapper.selectRolesByUserId）。
+// RoleCodes 实现 WorkerRepo（仅取启用角色，按角色 id 升序）。
 func (r *MySQLWorkerRepo) RoleCodes(ctx context.Context, userID string) ([]string, error) {
 	const query = `
 		SELECT r.code
@@ -111,7 +111,7 @@ func (r *MySQLWorkerRepo) RoleCodes(ctx context.Context, userID string) ([]strin
 	return r.queryStrings(ctx, query, userID)
 }
 
-// URLAndButtonCodes 实现 WorkerRepo（WorkerMapper.selectPermissionsByUserId）。
+// URLAndButtonCodes 实现 WorkerRepo（页面码 resource_type=0 与按钮码 resource_type=1 取并集）。
 func (r *MySQLWorkerRepo) URLAndButtonCodes(ctx context.Context, userID string) ([]string, error) {
 	const query = `
 		SELECT code FROM (
@@ -141,7 +141,7 @@ func (r *MySQLWorkerRepo) URLAndButtonCodes(ctx context.Context, userID string) 
 	return r.queryStrings(ctx, query, userID, userID)
 }
 
-// URLCodes 实现 WorkerRepo（WorkerMapper.selectUrlCodesByUserId）。
+// URLCodes 实现 WorkerRepo（仅页面码，resource_type=0）。
 func (r *MySQLWorkerRepo) URLCodes(ctx context.Context, userID string) ([]string, error) {
 	const query = `
 		SELECT DISTINCT uc.code
@@ -158,7 +158,7 @@ func (r *MySQLWorkerRepo) URLCodes(ctx context.Context, userID string) ([]string
 	return r.queryStrings(ctx, query, userID)
 }
 
-// AllPermissionCodes 实现 WorkerRepo（WorkerMapper.selectAllPermissions）。
+// AllPermissionCodes 实现 WorkerRepo（启用页面码 ∪ 全部按钮码）。
 func (r *MySQLWorkerRepo) AllPermissionCodes(ctx context.Context) ([]string, error) {
 	const query = `
 		SELECT code FROM t_acat_page WHERE is_deleted = 0 AND is_enabled = 1
@@ -167,7 +167,7 @@ func (r *MySQLWorkerRepo) AllPermissionCodes(ctx context.Context) ([]string, err
 	return r.queryStrings(ctx, query)
 }
 
-// AllURLCodes 实现 WorkerRepo（WorkerMapper.selectAllUrlCodes）。
+// AllURLCodes 实现 WorkerRepo（启用页面码）。
 func (r *MySQLWorkerRepo) AllURLCodes(ctx context.Context) ([]string, error) {
 	const query = `SELECT code FROM t_acat_page WHERE is_deleted = 0 AND is_enabled = 1`
 	return r.queryStrings(ctx, query)
@@ -202,7 +202,7 @@ type MySQLPageRepo struct {
 // NewPageRepo 构造 MySQL 实现。
 func NewPageRepo(db DBTX) *MySQLPageRepo { return &MySQLPageRepo{db: db} }
 
-// ListByScope 实现 PageRepo（AdminPageMapper.selectByScope）。
+// ListByScope 实现 PageRepo（LEFT JOIN i18n 标签回退名称，ORDER BY sort_order、id）。
 func (r *MySQLPageRepo) ListByScope(ctx context.Context, scope int, i18nCode string) ([]domain.Page, error) {
 	const query = `
 		SELECT uc.id, uc.code, COALESCE(label.label_value, uc.name) AS name,
@@ -263,8 +263,8 @@ func NewFrontendModuleRepo(db DBTX) *MySQLFrontendModuleRepo {
 	return &MySQLFrontendModuleRepo{db: db}
 }
 
-// ListEnabledByCodes 实现 FrontendModuleRepo
-// （AdminFrontendModuleMapper.selectEnabledByCodes：每个 module_code 取 sort_order/updated_at 最优的一条）。
+// ListEnabledByCodes 实现 FrontendModuleRepo：
+// 每个 module_code 取 sort_order/updated_at/created_at 最优的一条（ROW_NUMBER 窗口排序）。
 func (r *MySQLFrontendModuleRepo) ListEnabledByCodes(ctx context.Context, codes []string) ([]domain.FrontendModule, error) {
 	if len(codes) == 0 {
 		return []domain.FrontendModule{}, nil

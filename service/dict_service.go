@@ -798,9 +798,7 @@ func filterDataItemsByName(records []domain.DictDataRecord, name string) []domai
 	return out
 }
 
-// treeWindow。
-//
-// Go 侧按公共库 NormalizePage 口径收敛为第 1 页（差异记录在 README）。
+// treeWindow 计算树分页的窗口：pageIndex 收敛为不小于 1，pageSize 收敛为不小于 0。
 func treeWindow(pageIndex, pageSize, length int) (int, int) {
 	if pageIndex < 1 {
 		pageIndex = 1

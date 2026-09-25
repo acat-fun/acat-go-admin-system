@@ -12,13 +12,12 @@ import (
 
 // AuditLogStore 是审计日志存储的可注入接口。
 //
-// 生产实现是 MongoAuditLogStore（MongoDB 集合 audit_logs
+// 生产实现是 MongoAuditLogStore（MongoDB 集合 audit_logs）；
 // MemoryAuditLogStore 只用于单元测试与无 Mongo 的本地测试场景，**不在 main 装配中使用**。
 type AuditLogStore interface {
 	// List 分页查询审计日志。
 	List(ctx context.Context, query domain.AuditLogQuery) (domain.AuditLogPage, error)
-	// DeleteBefore 删除 createdAt 早于 before 的记录，返回**删除后**的记录总数
-	// 。
+	// DeleteBefore 删除 createdAt 早于 before 的记录，返回**删除后**的记录总数。
 	DeleteBefore(ctx context.Context, before time.Time) (int64, error)
 	// Count 返回当前记录总数。
 	Count(ctx context.Context) (int64, error)
@@ -30,8 +29,8 @@ type AuditLogStore interface {
 //
 // 语义与 MongoAuditLogStore 一致：
 //   - 过滤：Type → UserType → UserID → 时间区间；
-//   - 排序：createdAt DESC（Sort.by(DESC, "createdAt")）；
-//   - 分页：pageIndex 1 基 → offset = (pageIndex-1)*pageSize；pageSize<1 与 一样报错；
+//   - 排序：createdAt DESC；
+//   - 分页：pageIndex 1 基 → offset = (pageIndex-1)*pageSize；pageSize<1 与 Mongo 实现一样报错；
 //   - clean：删除 createdAt < before 的记录，返回删除后的剩余总数。
 type MemoryAuditLogStore struct {
 	mu   sync.RWMutex
@@ -82,7 +81,7 @@ func (s *MemoryAuditLogStore) List(_ context.Context, query domain.AuditLogQuery
 	return domain.AuditLogPage{Total: int64(len(filtered)), List: window}, nil
 }
 
-// matchesAuditLogQuery。
+// matchesAuditLogQuery 判断一条记录是否命中查询条件（分支互斥优先级同仓储查询）。
 func matchesAuditLogQuery(entry domain.AuditLog, query domain.AuditLogQuery) bool {
 	created := parseAuditTime(entry.CreatedAt)
 	switch {
@@ -93,7 +92,7 @@ func matchesAuditLogQuery(entry domain.AuditLog, query domain.AuditLogQuery) boo
 	case query.UserID != "":
 		return entry.UserID != nil && *entry.UserID == query.UserID
 	case query.CreatedFrom != nil && query.CreatedTo != nil:
-		// Spring Data Between 为闭区间。
+		// 时间区间为闭区间：两端都可取等。
 		return !created.IsZero() && !created.Before(*query.CreatedFrom) && !created.After(*query.CreatedTo)
 	case query.CreatedFrom != nil:
 		return !created.IsZero() && !created.Before(*query.CreatedFrom)

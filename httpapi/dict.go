@@ -25,7 +25,7 @@ func registerDictRoutes(mux *http.ServeMux, auth authMiddleware, a *API) {
 	a.route(mux, "DELETE "+PathDictData+"/{id}", auth, a.handleDeleteDictData)
 }
 
-// handleListDicts 复刻 DictAdminController.listDicts：
+// handleListDicts 处理 GET /dicts：
 // format=select → List<SelectVO>；all=true → List<DictVO>；否则分页 PageData<DictVO>。
 func (a *API) handleListDicts(w http.ResponseWriter, req *http.Request) {
 	if !a.requirePermission(w, req, logic.SystemDicts) {
@@ -65,7 +65,7 @@ func (a *API) handleListDicts(w http.ResponseWriter, req *http.Request) {
 	writeOK(w, data)
 }
 
-// handleCreateDict 复刻 POST /dicts。
+// handleCreateDict 处理 POST /dicts。
 func (a *API) handleCreateDict(w http.ResponseWriter, req *http.Request) {
 	if !a.requirePermission(w, req, logic.SystemDictsCreate) {
 		return
@@ -82,7 +82,7 @@ func (a *API) handleCreateDict(w http.ResponseWriter, req *http.Request) {
 	writeOK(w, data)
 }
 
-// handleUpdateDict 复刻 PUT /dicts/{id}。
+// handleUpdateDict 处理 PUT /dicts/{id}。
 func (a *API) handleUpdateDict(w http.ResponseWriter, req *http.Request) {
 	if !a.requirePermission(w, req, logic.SystemDictsEdit) {
 		return
@@ -99,7 +99,7 @@ func (a *API) handleUpdateDict(w http.ResponseWriter, req *http.Request) {
 	writeOK(w, data)
 }
 
-// handleDeleteDict 复刻 DELETE /dicts/{id}。
+// handleDeleteDict 处理 DELETE /dicts/{id}。
 func (a *API) handleDeleteDict(w http.ResponseWriter, req *http.Request) {
 	if !a.requirePermission(w, req, logic.SystemDictsDelete) {
 		return
@@ -111,7 +111,7 @@ func (a *API) handleDeleteDict(w http.ResponseWriter, req *http.Request) {
 	middleware.WriteResult(w, result.OK[any](nil))
 }
 
-// handleListDictData 复刻 DictDataAdminController.listDataItems（三态返回）。
+// handleListDictData 处理 GET /dicts/{dictId}/data（format=select / all=true / 分页 三态返回）。
 func (a *API) handleListDictData(w http.ResponseWriter, req *http.Request) {
 	if !a.requirePermission(w, req, logic.SystemDicts) {
 		return
@@ -145,7 +145,7 @@ func (a *API) handleListDictData(w http.ResponseWriter, req *http.Request) {
 	writeOK(w, data)
 }
 
-// handleCreateOrBatchDictData 复刻 POST /dicts/{dictId}/data：
+// handleCreateOrBatchDictData 处理 POST /dicts/{dictId}/data：
 // 数组 → 批量保存（data=null）；对象 → 单条创建（返回实体）；权限为 create OR edit。
 func (a *API) handleCreateOrBatchDictData(w http.ResponseWriter, req *http.Request) {
 	if !a.requireAnyPermission(w, req, logic.SystemDictsCreate, logic.SystemDictsEdit) {
@@ -184,7 +184,7 @@ func (a *API) handleCreateOrBatchDictData(w http.ResponseWriter, req *http.Reque
 	writeOK(w, data)
 }
 
-// handleUpdateDictData 复刻 PUT /dicts/{dictId}/data/{id}。
+// handleUpdateDictData 处理 PUT /dicts/{dictId}/data/{id}。
 func (a *API) handleUpdateDictData(w http.ResponseWriter, req *http.Request) {
 	if !a.requirePermission(w, req, logic.SystemDictsEdit) {
 		return
@@ -202,7 +202,7 @@ func (a *API) handleUpdateDictData(w http.ResponseWriter, req *http.Request) {
 	writeOK(w, data)
 }
 
-// handleDeleteDictData 复刻 DELETE /dicts/{dictId}/data/{id}?cascade=false。
+// handleDeleteDictData 处理 DELETE /dicts/{dictId}/data/{id}；cascade 决定是否级联删除子数据项。
 func (a *API) handleDeleteDictData(w http.ResponseWriter, req *http.Request) {
 	if !a.requirePermission(w, req, logic.SystemDictsDelete) {
 		return

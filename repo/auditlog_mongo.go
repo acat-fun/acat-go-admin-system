@@ -13,18 +13,17 @@ import (
 	"47.108.230.93/acat-fun/acat-go-admin-system/domain"
 )
 
-// ErrAuditLogPageSizeInvalid。
-// IllegalArgumentException（经 GlobalExceptionHandler 兜底为 HTTP 500「服务器内部错误」）。
+// ErrAuditLogPageSizeInvalid 表示审计日志分页大小非法，
+// 由 HTTP 层映射为 500「服务器内部错误」。
 var ErrAuditLogPageSizeInvalid = errors.New("repo: 审计日志 pageSize 必须大于 0")
 
-// MongoAuditLogStore 是 AuditLogStore 的真实 MongoDB 实现，
-// 对应 AuditLogRepository extends MongoRepository<AuditLogEntity, String>
-// （集合 audit_logs，见 AuditLogEntity.java:15）。
+// MongoAuditLogStore 是 AuditLogStore 的 MongoDB 实现，
+// 数据落在 audit_logs 集合。
 //
-// 文档形状与 侧**逐字对齐**（字段名 = 字段名，BSON 类型 = Spring Data 默认映射）：
+// 文档形状（字段名 = 契约字段名，BSON 类型按下表映射）：
 //
-//	_id            ObjectId          @Id String id 为 null 时 Spring Data 自动生成 ObjectId
-//	                                 （UAT audit_logs 全部 4531 行实证，见 README「UAT 交叉验证」）
+//	_id            ObjectId          id 为 null 时自动生成 ObjectId
+//	                                 （读路径同时兼容字符串形态的 _id）
 //	type           string
 //	userId         string|null
 //	username       string|null
@@ -38,17 +37,14 @@ var ErrAuditLogPageSizeInvalid = errors.New("repo: 审计日志 pageSize 必须�
 //	requestParams  string|null
 //	createBy       string|null
 //	updateBy       string|null
-//	createdAt      Date(ms, UTC)      LocalDateTime ←→ Date 经 ZoneId.systemDefault()
+//	createdAt      Date(ms, UTC)      LocalDateTime ←→ Date 按 options.Location 换算
 //	updatedAt      Date(ms, UTC)|null
-//
-// 读路径额外容忍 `_id` 为字符串的历史文档，
-// 保证双向可读。
 type MongoAuditLogStore struct {
 	client           *mongo.Client
 	database         string
 	collection       string
 	operationTimeout time.Duration
-	// location 是 ZoneId.systemDefault() 的等价物：
+	// location 是时间换算时区：
 	// BSON Date（瞬时）→ LocalDateTime 文本的换算时区，默认 UTC。
 	location *time.Location
 }
@@ -71,7 +67,7 @@ type MongoAuditOptions struct {
 
 // NewMongoAuditLogStore 建立 MongoDB 客户端并返回审计日志存储实现。
 //
-// 与 一致（官方 driver v2 的 mongo.Connect 是惰性的，不在建连时探测服务器）：
+// 官方 driver v2 的 mongo.Connect 是惰性的，不在建连时探测服务器：
 // Mongo 暂时不可用时构造仍然成功，服务照常启动，首次读写时才报错。
 func NewMongoAuditLogStore(opts MongoAuditOptions) (*MongoAuditLogStore, error) {
 	if opts.URI == "" {
@@ -118,12 +114,12 @@ func (s *MongoAuditLogStore) Ping(ctx context.Context) error {
 	return s.client.Ping(opCtx, nil)
 }
 
-// List 实现 AuditLogStore，对应 Spring Data 的三个派生查询 + findAll(Pageable)：
+// List 实现 AuditLogStore：
 //
-//   - 过滤：见 domain.AuditLogQuery（Type 优先，逐级 else-if
-//   - 排序：createdAt DESC（所有派生查询都带 OrderByCreatedAtDesc）；
+//   - 过滤：见 domain.AuditLogQuery（Type 优先，逐级 else-if）；
+//   - 排序：createdAt DESC；
 //   - 分页：skip = (pageIndex-1)*pageSize，limit = pageSize；total = 过滤后总文档数
-//     （Spring Data 的 Page.getTotalElements() 口径，与当前页无关）。
+//     （与当前页无关）。
 func (s *MongoAuditLogStore) List(ctx context.Context, query domain.AuditLogQuery) (domain.AuditLogPage, error) {
 	skip, limit, err := auditLogPageWindow(query)
 	if err != nil {
@@ -147,7 +143,7 @@ func (s *MongoAuditLogStore) List(ctx context.Context, query domain.AuditLogQuer
 	}
 	defer func() { _ = cursor.Close(opCtx) }()
 
-	// pageSize 无上限（Spring Data 无上限）；容量上限只用于避免超大预分配。
+	// pageSize 无上限；容量上限只用于避免超大预分配。
 	capacity := int(limit)
 	if capacity > 1000 {
 		capacity = 1000
@@ -166,9 +162,9 @@ func (s *MongoAuditLogStore) List(ctx context.Context, query domain.AuditLogQuer
 	return domain.AuditLogPage{Total: total, List: entries}, nil
 }
 
-// auditLogPageWindow 计算 Spring Data `PageRequest` 等价的 skip/limit。
+// auditLogPageWindow 计算分页的 skip/limit。
 //
-// pageSize < 1 时 PageRequest 抛 IllegalArgumentException（→ HTTP 500）。
+// pageSize < 1 时报错（HTTP 层映射为 500）。
 func auditLogPageWindow(query domain.AuditLogQuery) (int64, int64, error) {
 	if query.PageSize < 1 {
 		return 0, 0, ErrAuditLogPageSizeInvalid
@@ -180,8 +176,8 @@ func auditLogPageWindow(query domain.AuditLogQuery) (int64, int64, error) {
 	return int64(pageIndex-1) * int64(query.PageSize), int64(query.PageSize), nil
 }
 
-// DeleteBefore 实现 AuditLogStore
-// `deleteByCreatedAtBefore(before)`（严格小于）→ `count()`（返回**删除后剩余总数**）。
+// DeleteBefore 实现 AuditLogStore：删除 createdAt 严格早于 before 的文档，
+// 返回**删除后剩余总数**。
 func (s *MongoAuditLogStore) DeleteBefore(ctx context.Context, before time.Time) (int64, error) {
 	opCtx, cancel := s.withTimeout(ctx)
 	defer cancel()
@@ -234,9 +230,8 @@ func (s *MongoAuditLogStore) withTimeout(ctx context.Context) (context.Context, 
 
 // auditLogDocument 是 audit_logs 集合的 BSON 模型。
 //
-// 字段名与 AuditLogEntity 逐字一致；无 `omitempty` 的可空字段在写入时落 BSON null
-// （Spring Data MongoDB 默认写入 null 属性，UAT 数据的 `detail: null` / `requestParams: null`
-// 即实证）。
+// 字段名与对外契约字段名一致；无 `omitempty` 的可空字段在写入时落 BSON null
+// （即 `detail: null` / `requestParams: null` 这类文档形态）。
 type auditLogDocument struct {
 	// ID。
 	ID            any        `bson:"_id,omitempty"`
@@ -328,7 +323,7 @@ func auditLogFilter(query domain.AuditLogQuery) bson.D {
 	case query.UserID != "":
 		return bson.D{{Key: "userId", Value: query.UserID}}
 	case query.CreatedFrom != nil && query.CreatedTo != nil:
-		// Spring Data Between → $gte 且 $lte（闭区间）。
+		// 时间区间为闭区间：$gte 且 $lte。
 		return bson.D{{Key: "createdAt", Value: bson.D{
 			{Key: "$gte", Value: *query.CreatedFrom},
 			{Key: "$lte", Value: *query.CreatedTo},
@@ -368,7 +363,7 @@ func auditLogIDString(id any) string {
 	}
 }
 
-// stringPtr 返回字符串指针（空串同样保留
+// stringPtr 返回字符串指针（空串同样保留）。
 func stringPtr(value string) *string { return &value }
 
 // 编译期断言：Mongo 实现满足 AuditLogStore。

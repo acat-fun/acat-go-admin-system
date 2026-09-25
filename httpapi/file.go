@@ -17,7 +17,7 @@ import (
 	"github.com/acat-fun/acat-go-common/result"
 )
 
-// maxUploadBytes 是上传体积上限（Spring Boot 默认 multipart max-file-size = 1MB）。
+// maxUploadBytes 是上传体积上限（1MB；multipart 表单默认上限同值）。
 const maxUploadBytes = 1 << 20
 
 // registerFileRoutes 注册文件路由。
@@ -29,7 +29,7 @@ func registerFileRoutes(mux *http.ServeMux, auth authMiddleware, a *API) {
 	a.route(mux, "GET "+PathFilesServeByID, auth, a.handleServeFile)
 }
 
-// handleListFiles 复刻 GET /files（类级权限）。
+// handleListFiles 处理 GET /files（仅类级权限）。
 func (a *API) handleListFiles(w http.ResponseWriter, req *http.Request) {
 	if !a.requirePermission(w, req, logic.SystemFiles) {
 		return
@@ -43,7 +43,7 @@ func (a *API) handleListFiles(w http.ResponseWriter, req *http.Request) {
 	writeOK(w, data)
 }
 
-// handleUploadFile 复刻 POST /files（类级 + files:upload）。
+// handleUploadFile 处理 POST /files（类级 + files:upload）。
 func (a *API) handleUploadFile(w http.ResponseWriter, req *http.Request) {
 	if !a.requireAllPermissions(w, req, logic.SystemFiles, logic.SystemFilesUpload) {
 		return
@@ -77,7 +77,7 @@ func (a *API) handleUploadFile(w http.ResponseWriter, req *http.Request) {
 	writeOK(w, data)
 }
 
-// handleDeleteFile 复刻 DELETE /files/{id}（类级 + files:delete）。
+// handleDeleteFile 处理 DELETE /files/{id}（类级 + files:delete）。
 func (a *API) handleDeleteFile(w http.ResponseWriter, req *http.Request) {
 	if !a.requireAllPermissions(w, req, logic.SystemFiles, logic.SystemFilesDelete) {
 		return
@@ -89,7 +89,7 @@ func (a *API) handleDeleteFile(w http.ResponseWriter, req *http.Request) {
 	middleware.WriteResult(w, result.OK[any](nil))
 }
 
-// handleGetFile 复刻 GET /files/{id}：裸二进制流，**不是 Result 结构**。
+// handleGetFile 处理 GET /files/{id}：裸二进制流，**不是 Result 结构**。
 //
 // 404 时手写 JSON，字段是 `msg`（不是 `message`）。
 func (a *API) handleGetFile(w http.ResponseWriter, req *http.Request) {
@@ -99,7 +99,7 @@ func (a *API) handleGetFile(w http.ResponseWriter, req *http.Request) {
 	a.writeFileStream(w, req, queryBool(req, "download"))
 }
 
-// handleServeFile 复刻 GET /files/s/{id}：内联展示 + 一年缓存；404 时**空 body**。
+// handleServeFile 处理 GET /files/s/{id}：内联展示 + 一年缓存；404 时**空 body**。
 func (a *API) handleServeFile(w http.ResponseWriter, req *http.Request) {
 	if !a.requirePermission(w, req, logic.SystemFiles) {
 		return
@@ -164,7 +164,7 @@ func writeStreamHeaders(w http.ResponseWriter, file domain.File, download bool) 
 
 // writeStreamBody 写出裸流。
 //
-// 否则交给 net/http 自行计算（避免响应被截断），差异记录在 README。
+// 否则交给 net/http 自行计算（避免响应被截断）。
 func writeStreamBody(w http.ResponseWriter, file domain.File, body []byte) {
 	if int64(len(body)) == file.Size {
 		w.Header().Set("Content-Length", strconv.FormatInt(file.Size, 10))

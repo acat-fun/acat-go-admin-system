@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-// TestFormatAuditDateTimeMatchesJacksonISO 锁定字段回退行为
+// TestFormatAuditDateTimeMatchesJacksonISO 锁定小数秒的格式化行为：
 // 纳秒为 0 → 秒精度；否则按 3/6/9 位补零（BSON Date 只有毫秒，实际为 ".SSS"）。
 func TestFormatAuditDateTimeMatchesJacksonISO(t *testing.T) {
 	cases := []struct {

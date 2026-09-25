@@ -67,7 +67,7 @@ func TestAuditListPaginationSemantics(t *testing.T) {
 	}
 }
 
-// TestAuditCleanDaysBinding 锁定 days 的 Spring int 绑定语义（缺失/非法 → 500）。
+// TestAuditCleanDaysBinding 锁定 days 的整型绑定语义（缺失/非法 → 500）。
 func TestAuditCleanDaysBinding(t *testing.T) {
 	server := newTestServer(t)
 	token := server.login(t, domain.RootLoginID, nil)

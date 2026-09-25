@@ -15,14 +15,13 @@ type MySQLDictRepo struct {
 	db DBTX
 }
 
-// NewDictRepo 构造 MySQL 实现（同时提供 LabelRepo 能力）。
+// NewDictRepo 构造 MySQL 实现（同一实例同时提供 DictRepo 与 LabelRepo 能力）。
 func NewDictRepo(db DBTX) *MySQLDictRepo { return &MySQLDictRepo{db: db} }
 
-// dictColumns 查询列：
-// 排除 @TableField(select=false) 的 is_deleted/create_by/update_by。
+// dictColumns 是查询列清单，不含 is_deleted/create_by/update_by。
 const dictColumns = "id, code, name, is_enabled, is_tree, scope, description, created_at, updated_at, version"
 
-// dictDataColumns 同上（selectByDictId 手写 SQL 未取 version/updated_at）。
+// dictDataColumns 是数据项查询列清单，不含 is_deleted/create_by/update_by。
 const dictDataColumns = "id, dict_id, parent_id, code, name, value, age_level, sort_order, is_enabled, description, created_at, updated_at, version"
 
 func scanDictRow(scan func(dest ...any) error) (*domain.DictRecord, error) {
@@ -123,7 +122,7 @@ func (r *MySQLDictRepo) CountDataItemsByDictID(ctx context.Context, dictID strin
 	return count, nil
 }
 
-// FindDictByID 实现 DictRepo（selectById → WHERE id=? AND is_deleted=0）。
+// FindDictByID 实现 DictRepo（WHERE id=? AND is_deleted=0）。
 func (r *MySQLDictRepo) FindDictByID(ctx context.Context, id string) (*domain.DictRecord, error) {
 	query := "SELECT " + dictColumns + " FROM t_acat_dict WHERE id = ? AND is_deleted = 0"
 	record, err := scanDictRow(r.db.QueryRowContext(ctx, query, id).Scan)
@@ -133,7 +132,7 @@ func (r *MySQLDictRepo) FindDictByID(ctx context.Context, id string) (*domain.Di
 	return record, nil
 }
 
-// FindDictByCode 实现 DictRepo（selectOne(eq(code))）。
+// FindDictByCode 实现 DictRepo（WHERE code=? AND is_deleted=0）。
 //
 // 匹配到多条时返回 ErrMultipleResults。
 func (r *MySQLDictRepo) FindDictByCode(ctx context.Context, code string) (*domain.DictRecord, error) {
@@ -164,7 +163,7 @@ func (r *MySQLDictRepo) FindDictByCode(ctx context.Context, code string) (*domai
 	}
 }
 
-// CountDictsByCode 实现 DictRepo（createDict 唯一性预检 selectCount(eq(code))）。
+// CountDictsByCode 实现 DictRepo（新增字典的唯一性预检）。
 func (r *MySQLDictRepo) CountDictsByCode(ctx context.Context, code string) (int64, error) {
 	var count int64
 	query := "SELECT COUNT(*) FROM t_acat_dict WHERE is_deleted = 0 AND code = ?"
@@ -188,7 +187,7 @@ func (r *MySQLDictRepo) InsertDict(ctx context.Context, record domain.DictRecord
 	return wrapError("新增字典失败", err)
 }
 
-// UpdateDict 实现 DictRepo（updateById + 乐观锁：WHERE id=? AND version=? AND is_deleted=0）。
+// UpdateDict 实现 DictRepo（乐观锁：WHERE id=? AND version=? AND is_deleted=0）。
 //
 // 返回影响行数。
 func (r *MySQLDictRepo) UpdateDict(ctx context.Context, record domain.DictRecord) (int64, error) {
@@ -210,7 +209,7 @@ func (r *MySQLDictRepo) UpdateDict(ctx context.Context, record domain.DictRecord
 	return affected, nil
 }
 
-// SoftDeleteDict 实现 DictRepo（deleteById → 逻辑删除）。
+// SoftDeleteDict 实现 DictRepo（逻辑删除：SET is_deleted=1）。
 func (r *MySQLDictRepo) SoftDeleteDict(ctx context.Context, id string) (int64, error) {
 	const query = `UPDATE t_acat_dict SET is_deleted = 1, updated_at = ? WHERE id = ? AND is_deleted = 0`
 	result, err := r.db.ExecContext(ctx, query, domain.Now(), id)
@@ -299,7 +298,7 @@ func collectDictDataRows(rows *sql.Rows) ([]domain.DictDataRecord, error) {
 	return out, nil
 }
 
-// FindDataItemByID 实现 DictRepo（selectById）。
+// FindDataItemByID 实现 DictRepo（WHERE id=? AND is_deleted=0）。
 func (r *MySQLDictRepo) FindDataItemByID(ctx context.Context, id string) (*domain.DictDataRecord, error) {
 	query := "SELECT " + dictDataColumns + " FROM t_acat_dict_data WHERE id = ? AND is_deleted = 0"
 	record, err := scanDictDataRow(r.db.QueryRowContext(ctx, query, id).Scan)
@@ -309,7 +308,7 @@ func (r *MySQLDictRepo) FindDataItemByID(ctx context.Context, id string) (*domai
 	return record, nil
 }
 
-// ListChildDataItems 实现 DictRepo（collectDescendantIds 的 selectList(eq(dictId).eq(parentId))）。
+// ListChildDataItems 实现 DictRepo（WHERE dict_id=? AND parent_id=? AND is_deleted=0）。
 func (r *MySQLDictRepo) ListChildDataItems(ctx context.Context, dictID, parentID string) ([]domain.DictDataRecord, error) {
 	query := "SELECT " + dictDataColumns +
 		" FROM t_acat_dict_data WHERE is_deleted = 0 AND dict_id = ? AND parent_id = ?"
@@ -333,7 +332,7 @@ func (r *MySQLDictRepo) InsertDataItem(ctx context.Context, record domain.DictDa
 	return wrapError("新增数据项失败", err)
 }
 
-// UpdateDataItem 实现 DictRepo（updateById + 乐观锁）。
+// UpdateDataItem 实现 DictRepo（乐观锁：WHERE id=? AND version=? AND is_deleted=0）。
 func (r *MySQLDictRepo) UpdateDataItem(ctx context.Context, record domain.DictDataRecord) (int64, error) {
 	const query = `UPDATE t_acat_dict_data
 		SET dict_id = ?, parent_id = ?, code = ?, name = ?, value = ?, sort_order = ?,
@@ -354,7 +353,7 @@ func (r *MySQLDictRepo) UpdateDataItem(ctx context.Context, record domain.DictDa
 	return affected, nil
 }
 
-// UpdateDataItemByID 实现 DictRepo（batchSave 中的 updateById，version 为 null 时不带乐观锁条件）。
+// UpdateDataItemByID 实现 DictRepo（批量保存路径：不带 version 条件，仅 WHERE id=? AND is_deleted=0）。
 func (r *MySQLDictRepo) UpdateDataItemByID(ctx context.Context, record domain.DictDataRecord) (int64, error) {
 	const query = `UPDATE t_acat_dict_data
 		SET dict_id = ?, parent_id = ?, code = ?, name = ?, value = ?, sort_order = ?,
@@ -375,7 +374,7 @@ func (r *MySQLDictRepo) UpdateDataItemByID(ctx context.Context, record domain.Di
 	return affected, nil
 }
 
-// SoftDeleteDataItem 实现 DictRepo（deleteById）。
+// SoftDeleteDataItem 实现 DictRepo（逻辑删除并刷新 updated_at）。
 func (r *MySQLDictRepo) SoftDeleteDataItem(ctx context.Context, id string) (int64, error) {
 	const query = `UPDATE t_acat_dict_data SET is_deleted = 1, updated_at = ? WHERE id = ? AND is_deleted = 0`
 	result, err := r.db.ExecContext(ctx, query, domain.Now(), id)
@@ -389,7 +388,7 @@ func (r *MySQLDictRepo) SoftDeleteDataItem(ctx context.Context, id string) (int6
 // t_acat_i18n_label
 // ---------------------------------------------------------------------------
 
-// ListNameLabels 实现 LabelRepo（selectBySource，ORDER BY i18n_code ASC）。
+// ListNameLabels 实现 LabelRepo（按来源查询，ORDER BY i18n_code ASC）。
 func (r *MySQLDictRepo) ListNameLabels(ctx context.Context, sourceTable, tableDataID string) ([]domain.LabelRecord, error) {
 	const query = `SELECT i18n_code, label_value FROM t_acat_i18n_label
 		WHERE source_table = ? AND source_field = 'name' AND table_data_id = ? AND is_deleted = 0
@@ -413,7 +412,7 @@ func (r *MySQLDictRepo) ListNameLabels(ctx context.Context, sourceTable, tableDa
 	return out, nil
 }
 
-// ResolveCurrentName 实现 LabelRepo（selectLabelValue，LIMIT 1）。
+// ResolveCurrentName 实现 LabelRepo（按来源 + 语言取单条，LIMIT 1）。
 func (r *MySQLDictRepo) ResolveCurrentName(ctx context.Context, sourceTable, tableDataID, i18nCode string) (string, error) {
 	const query = `SELECT label_value FROM t_acat_i18n_label
 		WHERE source_table = ? AND source_field = 'name' AND table_data_id = ?
@@ -430,7 +429,7 @@ func (r *MySQLDictRepo) ResolveCurrentName(ctx context.Context, sourceTable, tab
 	return value, nil
 }
 
-// SaveNameLabels 实现 LabelRepo（upsert。
+// SaveNameLabels 实现 LabelRepo（幂等 upsert：ON DUPLICATE KEY UPDATE 恢复软删并刷新值）。
 func (r *MySQLDictRepo) SaveNameLabels(ctx context.Context, sourceTable, tableDataID string, values []domain.I18nValue) error {
 	if len(values) == 0 {
 		return nil
@@ -456,7 +455,7 @@ func (r *MySQLDictRepo) SaveNameLabels(ctx context.Context, sourceTable, tableDa
 	return nil
 }
 
-// DeleteNameLabels 实现 LabelRepo（softDeleteBySource）。
+// DeleteNameLabels 实现 LabelRepo（按来源软删除全部标签）。
 func (r *MySQLDictRepo) DeleteNameLabels(ctx context.Context, sourceTable, tableDataID string) (int64, error) {
 	const query = `UPDATE t_acat_i18n_label SET is_deleted = 1, updated_at = ?
 		WHERE source_table = ? AND source_field = 'name' AND table_data_id = ? AND is_deleted = 0`
@@ -467,7 +466,7 @@ func (r *MySQLDictRepo) DeleteNameLabels(ctx context.Context, sourceTable, table
 	return result.RowsAffected()
 }
 
-// ListFrontendLabels 实现 LabelRepo（I18nLabelMapper.selectFrontendLabels，逐字对齐该 SQL）。
+// ListFrontendLabels 实现 LabelRepo（字典项 ⋈ 标签：仅取启用字典与启用数据项，ORDER BY sort_order、code）。
 func (r *MySQLDictRepo) ListFrontendLabels(ctx context.Context, dictCode, i18nCode string) ([]domain.FrontendLabelRecord, error) {
 	const query = `
 		SELECT data.code AS table_data_id,

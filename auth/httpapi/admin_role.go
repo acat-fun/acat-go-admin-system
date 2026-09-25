@@ -28,7 +28,7 @@ func (a *API) registerPermissionRoutes(mux *http.ServeMux, auth func(http.Handle
 	mux.Handle("DELETE "+PathPermissions+subByID, auth(http.HandlerFunc(a.handleDeletePermission)))
 }
 
-// handleListRoles 复刻 RoleController.list：
+// handleListRoles 处理 GET /roles：
 // format=select → 下拉选项；all=true → 全量 AdminRoleEntity；否则分页 PageData<WorkerRoleVO>。
 func (a *API) handleListRoles(w http.ResponseWriter, req *http.Request) {
 	if !a.requirePermission(w, req, logic.SystemPermissions) {
@@ -149,7 +149,7 @@ func (a *API) handleAssignRolePermissions(w http.ResponseWriter, req *http.Reque
 	middleware.WriteResult(w, result.OK[any](nil))
 }
 
-// handleListPermissions 复刻 PermissionController.list：
+// handleListPermissions 处理 GET /permissions：
 // format=tree → List<PermissionVO>（扁平结构）；否则 → List<AdminPermissionEntity>。
 func (a *API) handleListPermissions(w http.ResponseWriter, req *http.Request) {
 	if !a.requirePermission(w, req, logic.SystemPermissions) {

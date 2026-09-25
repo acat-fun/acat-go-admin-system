@@ -17,13 +17,11 @@ import (
 
 // S3 是 MinIO/S3 兼容的对象存储实现（AWS Signature Version 4、path-style 寻址）。
 //
-// 与 侧 AdminFileServiceImpl 的客户端构造对齐：
+// 客户端构造口径：固定 region us-east-1、使用配置的 endpoint 覆盖默认地址、
+// 强制 path-style 寻址，并以配置的 access key / secret key 做静态签名。
 //
-//	S3Client.builder().region(US_EAST_1).endpointOverride(endpoint).forcePathStyle(true)
-//	          .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(ak, sk)))
-//
-// **联调状态：本机没有 MinIO，本实现未做真实联调，标注「待 UAT 验证」。**
-// 已通过单元测试覆盖：签名规范串构造、路径编码、桶/键解析、错误映射。
+// 已由单元测试覆盖签名规范串构造、路径编码、桶/键解析与错误映射；
+// 尚未连接真实 MinIO 做过联调。
 type S3 struct {
 	endpoint  string
 	accessKey string

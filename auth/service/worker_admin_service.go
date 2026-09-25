@@ -29,7 +29,7 @@ const (
 	MessageOnlyRootAssignRole = "只有超级管理员才能分配 %s 角色"
 )
 
-// ListWorkers 复刻 WorkerAdminServiceImpl.listWorkers：keyword LIKE + ORDER BY id ASC。
+// ListWorkers 分页查询工作人员：keyword LIKE + ORDER BY id ASC。
 func (s *Service) ListWorkers(ctx context.Context, pageIndex, pageSize int, keyword string) (result.PageData[domain.WorkerVO], error) {
 	var empty result.PageData[domain.WorkerVO]
 	if s.adminWorkerRepo == nil || s.roleRepo == nil {
@@ -55,7 +55,7 @@ func (s *Service) ListWorkers(ctx context.Context, pageIndex, pageSize int, keyw
 	return result.NewPageData(list, total, pageIndex, pageSize), nil
 }
 
-// CreateWorker 复刻 WorkerAdminServiceImpl.createWorker：
+// CreateWorker 新增工作人员：
 // BCrypt 密码、status=1、重复用户名业务失败、创建后分配角色。
 func (s *Service) CreateWorker(ctx context.Context, actor *logic.Actor, dto domain.WorkerCreateDTO) (domain.WorkerVO, error) {
 	if s.adminWorkerRepo == nil || s.roleRepo == nil {
@@ -109,7 +109,7 @@ func (s *Service) CreateWorker(ctx context.Context, actor *logic.Actor, dto doma
 	return s.toWorkerVO(ctx, worker, allRoles)
 }
 
-// UpdateWorker 复刻 WorkerAdminServiceImpl.updateWorker：
+// UpdateWorker 更新工作人员：
 // 自操作绕过 + root 保护 + 空值不更新 + password 非空才重新 BCrypt + roleIds 非 nil 才重分配角色。
 func (s *Service) UpdateWorker(ctx context.Context, actor *logic.Actor, id string, dto domain.WorkerUpdateDTO) (domain.WorkerVO, error) {
 	if s.adminWorkerRepo == nil || s.roleRepo == nil {
@@ -168,7 +168,7 @@ func (s *Service) UpdateWorker(ctx context.Context, actor *logic.Actor, id strin
 	return s.toWorkerVO(ctx, worker, allRoles)
 }
 
-// UpdateWorkerStatus 复刻 WorkerAdminServiceImpl.updateStatus（权限码用 workers:edit）。
+// UpdateWorkerStatus 更新工作人员状态（权限码用 workers:edit）。
 func (s *Service) UpdateWorkerStatus(ctx context.Context, actor *logic.Actor, id string, status int) error {
 	if s.adminWorkerRepo == nil {
 		return fmt.Errorf("service: 工作人员数据访问未注入")
@@ -199,7 +199,7 @@ func (s *Service) UpdateWorkerStatus(ctx context.Context, actor *logic.Actor, id
 	return nil
 }
 
-// DeleteWorker 复刻 WorkerAdminServiceImpl.deleteWorker：软删工作人员 + 软删角色关联。
+// DeleteWorker 删除工作人员：软删工作人员 + 软删角色关联。
 func (s *Service) DeleteWorker(ctx context.Context, actor *logic.Actor, id string) error {
 	if s.adminWorkerRepo == nil {
 		return fmt.Errorf("service: 工作人员数据访问未注入")
@@ -233,7 +233,7 @@ func (s *Service) DeleteWorker(ctx context.Context, actor *logic.Actor, id strin
 	})
 }
 
-// AssignWorkerRoles 复刻 WorkerAdminServiceImpl.assignRoles（自操作绕过 + assign-role 权限），
+// AssignWorkerRoles 分配工作人员角色（自操作绕过 + assign-role 权限），
 // 并按需求补充非 root 不得分配 root/admin 角色的校验。
 func (s *Service) AssignWorkerRoles(ctx context.Context, actor *logic.Actor, workerID string, roleIDs []string) error {
 	if s.adminWorkerRepo == nil || s.roleRepo == nil {
@@ -306,7 +306,7 @@ func (s *Service) validateRoleAssignment(ctx context.Context, actor *logic.Actor
 	return nil
 }
 
-// toWorkerVO 复刻 WorkerAdminServiceImpl.toVO：
+// toWorkerVO 构造工作人员视图：
 // 角色取“该用户启用角色编码 ∩ 全量未删除角色”，permissionCount 恒为 null。
 func (s *Service) toWorkerVO(ctx context.Context, worker *domain.AdminWorker, allRoles []domain.Role) (domain.WorkerVO, error) {
 	codes, err := s.adminWorkerRepo.RoleCodes(ctx, worker.ID)

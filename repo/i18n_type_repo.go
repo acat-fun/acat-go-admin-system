@@ -16,7 +16,7 @@ type MySQLI18nTypeRepo struct {
 // NewI18nTypeRepo 构造 MySQL 实现。
 func NewI18nTypeRepo(db DBTX) *MySQLI18nTypeRepo { return &MySQLI18nTypeRepo{db: db} }
 
-// i18nTypeColumns 与 MyBatis-Plus 默认查询列一致（排除 is_deleted/create_by/update_by）。
+// i18nTypeColumns 是语言类型查询列清单，不含 is_deleted/create_by/update_by。
 const i18nTypeColumns = "id, code, name, sort_order, is_enabled, created_at, updated_at, version"
 
 func scanI18nType(scan func(dest ...any) error) (*domain.I18nTypeRecord, error) {
@@ -83,7 +83,7 @@ func collectI18nTypes(rows *sql.Rows) ([]domain.I18nTypeRecord, error) {
 	return out, nil
 }
 
-// FindTypeByID 实现 I18nTypeRepo（selectById）。
+// FindTypeByID 实现 I18nTypeRepo（WHERE id=? AND is_deleted=0）。
 func (r *MySQLI18nTypeRepo) FindTypeByID(ctx context.Context, id string) (*domain.I18nTypeRecord, error) {
 	query := "SELECT " + i18nTypeColumns + " FROM t_acat_i18n_type WHERE id = ? AND is_deleted = 0"
 	record, err := scanI18nType(r.db.QueryRowContext(ctx, query, id).Scan)
@@ -93,7 +93,7 @@ func (r *MySQLI18nTypeRepo) FindTypeByID(ctx context.Context, id string) (*domai
 	return record, nil
 }
 
-// CountTypesByCode 实现 I18nTypeRepo（createType 唯一性预检 selectCount）。
+// CountTypesByCode 实现 I18nTypeRepo（新增语言类型的唯一性预检）。
 func (r *MySQLI18nTypeRepo) CountTypesByCode(ctx context.Context, code string) (int64, error) {
 	var count int64
 	const query = "SELECT COUNT(*) FROM t_acat_i18n_type WHERE is_deleted = 0 AND code = ?"
@@ -103,7 +103,7 @@ func (r *MySQLI18nTypeRepo) CountTypesByCode(ctx context.Context, code string) (
 	return count, nil
 }
 
-// InsertType 实现 I18nTypeRepo（myInsert）。
+// InsertType 实现 I18nTypeRepo（is_deleted=0，审计字段由 service 填充）。
 func (r *MySQLI18nTypeRepo) InsertType(ctx context.Context, record domain.I18nTypeRecord) error {
 	const query = `INSERT INTO t_acat_i18n_type
 		(id, code, name, sort_order, is_enabled, is_deleted, created_at, updated_at, version)
@@ -113,7 +113,7 @@ func (r *MySQLI18nTypeRepo) InsertType(ctx context.Context, record domain.I18nTy
 	return wrapError("新增语言类型失败", err)
 }
 
-// UpdateType 实现 I18nTypeRepo（myUpdate + 乐观锁，返回影响行数）。
+// UpdateType 实现 I18nTypeRepo（乐观锁：WHERE id=? AND version=? AND is_deleted=0，返回影响行数）。
 func (r *MySQLI18nTypeRepo) UpdateType(ctx context.Context, record domain.I18nTypeRecord) (int64, error) {
 	const query = `UPDATE t_acat_i18n_type
 		SET code = ?, name = ?, sort_order = ?, is_enabled = ?,
@@ -131,7 +131,7 @@ func (r *MySQLI18nTypeRepo) UpdateType(ctx context.Context, record domain.I18nTy
 	return affected, nil
 }
 
-// SoftDeleteType 实现 I18nTypeRepo（deleteById。
+// SoftDeleteType 实现 I18nTypeRepo（逻辑删除并刷新 updated_at）。
 func (r *MySQLI18nTypeRepo) SoftDeleteType(ctx context.Context, id string) (int64, error) {
 	const query = `UPDATE t_acat_i18n_type SET is_deleted = 1, updated_at = ? WHERE id = ? AND is_deleted = 0`
 	result, err := r.db.ExecContext(ctx, query, domain.Now(), id)

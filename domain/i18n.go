@@ -5,9 +5,8 @@ import (
 	"encoding/json"
 )
 
-// 本文件对应 侧国际化域实体与视图：
-//   - I18nTypeEntity  (fun.acat.admin.entity.I18nTypeEntity, 表 t_acat_i18n_type)
-//   - I18nLabelEntity (fun.acat.admin.entity.I18nLabelEntity, 表 t_acat_i18n_label)
+// 本文件定义国际化域的结构：语言类型（表 t_acat_i18n_type）
+// 与名称标签（表 t_acat_i18n_label）。
 
 // I18nTypeEntity 是国际化语言类型实体。
 type I18nTypeEntity struct {
@@ -25,7 +24,7 @@ type I18nTypeEntity struct {
 	IsEnabled *int   `json:"isEnabled"`
 }
 
-// I18nLabelEntity 是国际化标签实体（Go 侧仅在读写标签表时使用）。
+// I18nLabelEntity 是国际化标签实体（标签表读写使用）。
 type I18nLabelEntity struct {
 	ID          string `json:"id"`
 	I18nCode    string `json:"i18nCode"`
@@ -35,11 +34,11 @@ type I18nLabelEntity struct {
 	TableDataID string `json:"tableDataId"`
 }
 
-// 与
+// 标签来源常量与前端国际化字典编码。
 const (
 	// I18nFieldName 是标签来源字段名固定值。
 	I18nFieldName = "name"
-	// I18nTableDict 字典表（含库名前缀。
+	// I18nTableDict 字典表（含库名前缀）。
 	I18nTableDict = "acat_user.t_acat_dict"
 	// I18nTableDictData 字典数据项表。
 	I18nTableDictData = "acat_user.t_acat_dict_data"
@@ -56,9 +55,9 @@ const (
 	FrontendAppDictCode = "i18n_app_label"
 )
 
-// frontendNamespacePrefixes （命名空间前缀常量）。
+// frontendNamespacePrefixes 是前端运行时字典的命名空间前缀列表。
 //
-// 前端运行时字典的历史兼容别名：完整编码去掉这些前缀后的剩余部分也作为 key 输出。
+// 完整编码去掉这些前缀后的剩余部分也作为 key 输出（历史别名兼容）。
 var frontendNamespacePrefixes = []string{
 	"acat.read.admin.system.base-config.files",
 	"acat.read.admin.system.base-config.dicts",

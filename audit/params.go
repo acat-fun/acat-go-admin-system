@@ -17,17 +17,13 @@ import (
 // auditBodyCaptureLimit 是审计摘要读取请求体的上限：
 const auditBodyCaptureLimit = 64 << 10
 
-// requestParams 近似复刻 AuditLogAspect.buildParams(joinPoint.getArgs())：
+// requestParams 构造审计的 requestParams 摘要：
 //
-//	把 Controller 方法入参序列化为 JSON；
-//	      单参数直接序列化该对象，多参数序列化为数组；超过 2000 字符截断并追加 "..."。
-//	Go：HTTP 中间件拿不到方法入参，改用「请求体 → 路径变量 → 查询参数」重建同量级摘要：
-//	      有请求体时以请求体（JSON 原文 / 表单对象）为主；
-//	      无请求体时按「路径变量（模式顺序）+ 查询参数（键排序）」组装，单值序列化为标量、
-//	      多值序列化为数组
-//	      multipart 上传不落文件内容。
-//
-// 差异已在 README「审计写入路径 · 与 AOP 的差异」登记。
+//	有请求体时以请求体为主（JSON 原文 / 表单对象序列化）；
+//	无请求体时按「路径变量（模式顺序）+ 查询参数（键排序）」组装：
+//	      单个参数序列化为标量，多个参数序列化为数组；
+//	摘要超过 2000 字符截断并追加 "..."（按 Unicode 码点计）；
+//	multipart 上传只记 "[multipart/form-data]"，不落文件内容。
 func requestParams(req *http.Request) string {
 	mediaType := mediaTypeOf(req.Header.Get("Content-Type"))
 	if strings.HasPrefix(mediaType, "multipart/form-data") {
@@ -231,7 +227,7 @@ func marshalJSON(value any) string {
 	return string(encoded)
 }
 
-// truncateParams：112-115 的 2000 字符截断（按 Unicode 码点计）。
+// truncateParams 按 2000 字符上限截断参数摘要（按 Unicode 码点计）。
 func truncateParams(text string) string {
 	runes := []rune(text)
 	if len(runes) <= domain.AuditLogRequestParamsMaxLength {

@@ -1,7 +1,7 @@
 package logic
 
-// 本文件是用户/角色/权限域的权限码常量（抽取自 acat-admin-user；
-// SystemPermissions / MessageForbidden / RoleCodeRoot 在 permission_codes.go 统一声明）。
+// 本文件是用户/角色/权限域的权限码常量；
+// SystemPermissions / MessageForbidden / RoleCodeRoot 在 permission_codes.go 统一声明。
 
 const (
 	// ---- 系统管理 ----

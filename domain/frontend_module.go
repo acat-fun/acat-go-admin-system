@@ -5,12 +5,10 @@ import (
 	"strings"
 )
 
-// 本文件对应 侧前端模块域实体与视图：
-//   - AdminFrontendModuleEntity (fun.acat.admin.entity.AdminFrontendModuleEntity, 表 t_acat_frontend_module)
-//   - FrontendModuleVO          (fun.acat.admin.system.vo.FrontendModuleVO)
-//   - FrontendModuleSaveParam / FrontendModulePublicationParam (请求参数)
+// 本文件定义前端模块域的实体、视图与请求参数
+// （实体对应表 t_acat_frontend_module）。
 
-// 前端模块状态（AdminFrontendModuleEntity.STATUS_*）。
+// 前端模块状态。
 const (
 	FrontendModuleStatusDraft    = 0
 	FrontendModuleStatusEnabled  = 1
@@ -100,8 +98,7 @@ func IsValidManifestPath(moduleCode, version, manifestPath string) bool {
 	return manifestPath == "/admin-remotes/"+moduleCode+"/"+version+"/mf-manifest.json"
 }
 
-// IsBlank 判断字符串是否为 null/空白（含全角空格以外的 Unicode 空白，
-// Go 侧用 TrimSpace 近似；对本服务的实际输入等价）。
+// IsBlank 判断字符串是否为 null/空白（按 Unicode 空白字符判定）。
 func IsBlank(value *string) bool {
 	return value == nil || strings.TrimSpace(*value) == ""
 }

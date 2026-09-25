@@ -55,13 +55,13 @@ func TestAuditLogDocumentDecodesLegacyRow(t *testing.T) {
 	if entry.CreateBy != nil || entry.UpdateBy != nil || entry.UpdatedAt != nil {
 		t.Fatalf("未写入的审计字段应为 null: %+v", entry)
 	}
-	// BSON Date → 时间文本：Jackson ISO_LOCAL_DATE_TIME（去尾随零）。
+	// BSON Date → 时间文本：ISO 本地日期时间（去尾随零）。
 	if domain.DerefString(entry.CreatedAt) != "2026-09-13T19:27:01.862" {
 		t.Fatalf("createdAt 文本异常: %q", domain.DerefString(entry.CreatedAt))
 	}
 }
 
-// TestAuditLogDocumentDecodesUnknownFieldsAndStringID 容忍历史/异构文档：
+// TestAuditLogDocumentDecodesUnknownFieldsAndStringID 容忍非标准/异构文档：
 // 字符串 _id、缺失的可空字段、额外的未知字段都不应导致失败。
 func TestAuditLogDocumentDecodesUnknownFieldsAndStringID(t *testing.T) {
 	raw, err := bson.Marshal(bson.D{
@@ -242,7 +242,7 @@ func TestAuditLogFilterDerivedQueries(t *testing.T) {
 	}
 }
 
-// TestAuditLogPageWindowMatchesSpringPageRequest 校验分页窗口与 PageRequest 语义一致。
+// TestAuditLogPageWindowMatchesSpringPageRequest 校验分页窗口与 skip/limit 语义一致。
 func TestAuditLogPageWindowMatchesSpringPageRequest(t *testing.T) {
 	skip, limit, err := auditLogPageWindow(domain.AuditLogQuery{PageIndex: 3, PageSize: 20})
 	if err != nil || skip != 40 || limit != 20 {

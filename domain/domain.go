@@ -1,13 +1,11 @@
 // Package domain 定义 admin-system 服务的领域模型与对外契约结构。
 //
-// 与 侧的对应关系（详见  §3）：
-//   - AdminDictEntity      <- fun.acat.admin.entity.AdminDictEntity
-//   - AdminDictDataEntity  <- fun.acat.admin.entity.AdminDictDataEntity
-//   - I18nTypeEntity       <- fun.acat.admin.entity.I18nTypeEntity
-//   - AdminPageEntity      <- fun.acat.admin.entity.AdminPageEntity
-//   - AdminPageHistoryEntity <- fun.acat.admin.system.entity.AdminPageHistoryEntity
-//   - AdminFrontendModuleEntity <- fun.acat.admin.entity.AdminFrontendModuleEntity
-//   - AdminFileEntity      <- fun.acat.admin.system.entity.AdminFileEntity
+// 常量、实体与 VO 的分工：
+//   - AdminDictEntity / AdminDictDataEntity：字典与字典数据项契约结构；
+//   - I18nTypeEntity：语言类型契约结构；
+//   - AdminPageEntity / AdminPageHistoryEntity：页面与页面变更快照契约结构；
+//   - AdminFrontendModuleEntity：前端模块契约结构；
+//   - AdminFileEntity：文件契约结构。
 //
 // JSON 字段名为驼峰，ID 一律保持字符串。
 package domain
@@ -23,9 +21,8 @@ import (
 // 不再按登录 id 特判。
 const RootRoleID = "root"
 
-// RootLoginID 是历史口径下超级管理员固定登录 id（worker 表 id="0"）。
-//
-// Deprecated: 超管判定已统一为角色判定；本常量仅供迁移期兼容引用，新代码不要使用。
+// RootLoginID 是超级管理员固定登录 id（worker 表 id="0"），
+// 供兼容期代码与测试引用；超管判定请使用 RootRoleID 角色判定。
 const RootLoginID = "0"
 
 // IsRootRole 判断角色码列表是否包含超级管理员角色。

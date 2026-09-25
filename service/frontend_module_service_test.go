@@ -8,7 +8,7 @@ import (
 	"47.108.230.93/acat-fun/acat-go-admin-system/domain"
 )
 
-// TestListFrontendModulesEmitsNullFallbackManifestPath 锁定字段回退行为
+// TestListFrontendModulesEmitsNullFallbackManifestPath 锁定可空字段的回退行为：
 // fallback_version/fallback_manifest_path 为 NULL 时 JSON 输出 null（不能是 ""）。
 func TestListFrontendModulesEmitsNullFallbackManifestPath(t *testing.T) {
 	env := newTestEnv(t)

@@ -12,25 +12,25 @@ import (
 
 // PermissionRepo 提供权限码注册表（t_acat_permission）数据访问。
 //
-// SQL 与 侧 PermissionMapper.xml / MyBatis-Plus 通用方法逐条对齐。
+// 权限码注册表的数据访问；SQL 形状稳定（测试按字面断言）。
 type PermissionRepo interface {
-	// List 查询全量权限并按 id 升序（listAll：orderByAsc(id)）。
+	// List 查询全量权限并按 id 升序。
 	List(ctx context.Context) ([]domain.AdminPermission, error)
-	// FindByID 按主键查询未删除权限（selectById + @TableLogic）。
+	// FindByID 按主键查询未删除权限。
 	FindByID(ctx context.Context, id string) (*domain.AdminPermission, error)
-	// FindDeletedByCode 按 code 查询已软删记录（PermissionMapper.selectDeletedByCode）。
+	// FindDeletedByCode 按 code 查询已软删记录。
 	FindDeletedByCode(ctx context.Context, code string) (*domain.AdminPermission, error)
-	// ExistsByCode 判断 code 是否已被未删除记录占用（selectCount，excludeID 非空时排除自身）。
+	// ExistsByCode 判断 code 是否已被未删除记录占用（excludeID 非空时排除自身）。
 	ExistsByCode(ctx context.Context, code, excludeID string) (bool, error)
-	// FindByIDs 批量查询存在的权限 id（selectBatchIds + @TableLogic）。
+	// FindByIDs 批量查询存在的权限 id（仅未删除记录）。
 	FindByIDs(ctx context.Context, ids []string) ([]domain.AdminPermission, error)
-	// Insert 新增（myInsert）。
+	// Insert 新增权限。
 	Insert(ctx context.Context, permission *domain.AdminPermission) error
-	// Update 按主键更新（updateById）。
+	// Update 按主键更新权限。
 	Update(ctx context.Context, permission *domain.AdminPermission) (int64, error)
-	// SoftDelete 软删除（myDelete）。
+	// SoftDelete 软删除权限。
 	SoftDelete(ctx context.Context, id string) (int64, error)
-	// Restore 恢复已软删记录并更新 name/page_id（PermissionMapper.restoreDeleted）。
+	// Restore 恢复已软删记录并更新 name/page_id。
 	Restore(ctx context.Context, id, name string, pageID *string, updatedAt time.Time) error
 }
 
@@ -68,7 +68,7 @@ func (r *MySQLPermissionRepo) FindByID(ctx context.Context, id string) (*domain.
 	return permission, nil
 }
 
-// FindDeletedByCode 实现 PermissionRepo（PermissionMapper.selectDeletedByCode，LIMIT 1）。
+// FindDeletedByCode 实现 PermissionRepo（WHERE code=? AND is_deleted=1，LIMIT 1）。
 func (r *MySQLPermissionRepo) FindDeletedByCode(ctx context.Context, code string) (*domain.AdminPermission, error) {
 	query := "SELECT " + permissionColumns + " FROM t_acat_permission WHERE code = ? AND is_deleted = 1 LIMIT 1"
 	permission, err := scanPermission(r.db.QueryRowContext(ctx, query, code))
@@ -123,7 +123,7 @@ func (r *MySQLPermissionRepo) Insert(ctx context.Context, permission *domain.Adm
 	return nil
 }
 
-// Update 实现 PermissionRepo（updateById：code/name/page_id）。
+// Update 实现 PermissionRepo（更新 code/name/page_id 与 updated_at）。
 func (r *MySQLPermissionRepo) Update(ctx context.Context, permission *domain.AdminPermission) (int64, error) {
 	const query = `
 		UPDATE t_acat_permission
@@ -147,7 +147,7 @@ func (r *MySQLPermissionRepo) SoftDelete(ctx context.Context, id string) (int64,
 	return result.RowsAffected()
 }
 
-// Restore 实现 PermissionRepo（PermissionMapper.restoreDeleted：仅更新已软删行）。
+// Restore 实现 PermissionRepo（仅更新已软删行：SET is_deleted=0 并刷新 name/page_id）。
 func (r *MySQLPermissionRepo) Restore(ctx context.Context, id, name string, pageID *string, updatedAt time.Time) error {
 	const query = `
 		UPDATE t_acat_permission

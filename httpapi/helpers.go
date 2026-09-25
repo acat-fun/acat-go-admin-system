@@ -44,7 +44,7 @@ func (a *API) requireAllPermissions(w http.ResponseWriter, req *http.Request, co
 	return true
 }
 
-// requireAnyPermission 判定权限码集合（OR 语义，对应 @SaCheckPermission(mode = SaMode.OR)）。
+// requireAnyPermission 判定权限码集合（OR 语义：命中任意一个即放行）。
 func (a *API) requireAnyPermission(w http.ResponseWriter, req *http.Request, codes ...string) bool {
 	if err := a.actor(req).RequireAnyPermission(codes...); err != nil {
 		middleware.WriteError(req.Context(), w, err)
@@ -102,7 +102,7 @@ func queryPageWith(req *http.Request, defaultPageSize int) (int, int) {
 	return result.NormalizePage(pageIndex, pageSize)
 }
 
-// queryInt 读取整型查询参数，缺失或非法时取默认值（Spring 对非法值会 400，此处按缺省处理）。
+// queryInt 读取整型查询参数，缺失或非法时取默认值（非法值不报错，按缺省处理）。
 func queryInt(req *http.Request, name string, fallback int) int {
 	raw := strings.TrimSpace(req.URL.Query().Get(name))
 	if raw == "" {
@@ -128,7 +128,7 @@ func queryIntPtr(req *http.Request, name string) *int {
 	return &value
 }
 
-// queryBool 按 Spring StringToBooleanConverter 口径解析布尔查询参数（true/on/yes/1）。
+// queryBool 解析布尔查询参数（true/on/yes/1 为真，其余为假）。
 func queryBool(req *http.Request, name string) bool {
 	switch strings.ToLower(strings.TrimSpace(req.URL.Query().Get(name))) {
 	case "true", "on", "yes", "1":
@@ -143,7 +143,7 @@ func queryString(req *http.Request, name string) string {
 	return req.URL.Query().Get(name)
 }
 
-// hasQuery 判断查询参数是否存在（对应 Spring @RequestParam(required=false) 的存在性）。
+// hasQuery 判断查询参数是否存在（存在但为空串也算存在）。
 func hasQuery(req *http.Request, name string) bool {
 	return req.URL.Query().Has(name)
 }

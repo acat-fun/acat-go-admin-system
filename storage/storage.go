@@ -1,16 +1,15 @@
 // Package storage 定义对象存储（MinIO/S3 兼容）的可注入接口与实现。
 //
-// 背景：AdminFileServiceImpl 直接依赖 AWS SDK S3 客户端，配置项来自
-// Nacos 的 minio.endpoint / minio.access-key / minio.secret-key / minio.bucket。
-// Go 侧把这段依赖收敛为 ObjectStorage 接口，便于：
-//   - 单元测试注入内存实现（本机没有 MinIO）；
+// 对象存储依赖被收敛为 ObjectStorage 接口，便于：
+//   - 单元测试注入内存实现（不需要 MinIO）；
 //   - 生产按配置切换到真实 S3/MinIO 实现。
 //
 // 两个实现：
 //   - Memory：进程内内存实现，仅本地联调/单测使用，重启即丢数据；
 //   - S3：MinIO/S3 兼容实现（自研 SigV4 客户端，无新增第三方依赖）。
 //
-// 真实 MinIO 联调状态：**本机无 MinIO，S3 实现未做真实联调，标注「待 UAT 验证」**。
+// S3 实现由单元测试覆盖（签名规范串构造、路径编码、桶/键解析、错误映射），
+// 尚未连接真实 MinIO 做过联调。
 package storage
 
 import (
@@ -37,12 +36,8 @@ type Object struct {
 	Size int64
 }
 
-// ObjectStorage 是对象存储的最小能力集。
-//
-// 与 AdminFileServiceImpl 的对应关系：
-//   - Put     <- putObject(bucket, key, stream, size, contentType)
-//   - Get     <- getObject(bucket, key)
-//   - Delete  <- removeObject(bucket, key)
+// ObjectStorage 是对象存储的最小能力集：
+// 写入对象、读取对象、删除对象与读取默认桶名。
 type ObjectStorage interface {
 	// Put 写入对象；bucket 为空时使用默认桶。
 	Put(ctx context.Context, bucket, key string, body []byte, contentType string) error
@@ -50,7 +45,7 @@ type ObjectStorage interface {
 	Get(ctx context.Context, bucket, key string) (*Object, error)
 	// Delete 删除对象；对象不存在返回 ErrObjectNotFound。
 	Delete(ctx context.Context, bucket, key string) error
-	// DefaultBucket 返回默认桶名)。
+	// DefaultBucket 返回默认桶名。
 	DefaultBucket() string
 }
 

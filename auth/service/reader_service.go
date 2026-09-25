@@ -14,15 +14,15 @@ import (
 	"github.com/acat-fun/acat-go-common/result"
 )
 
-// 与
+// 业务失败提示文案。
 const (
-	// MessageUsernameExists 用户名重复（UserServiceImpl.createUser / WorkerAdminServiceImpl.createWorker）。
+	// MessageUsernameExists 用户名重复。
 	MessageUsernameExists = "用户名已存在"
 	// MessageRoleNotExist 角色不存在。
 	MessageRoleNotExist = "角色不存在"
 )
 
-// ListReaders 复刻 UserServiceImpl.listUsers。
+// ListReaders 分页查询读者用户。
 //
 // keyword 对 username/email 做 LIKE（%kw%），无排序。
 func (s *Service) ListReaders(ctx context.Context, pageIndex, pageSize int, keyword string) (result.PageData[domain.UserVO], error) {
@@ -46,7 +46,7 @@ func (s *Service) ListReaders(ctx context.Context, pageIndex, pageSize int, keyw
 	return result.NewPageData(list, total, pageIndex, pageSize), nil
 }
 
-// CreateReader 复刻 UserServiceImpl.createUser：MD5 十六进制小写密码、status 固定 1。
+// CreateReader 新增读者用户：MD5 十六进制小写密码、status 固定 1。
 func (s *Service) CreateReader(ctx context.Context, dto domain.ReaderCreateDTO) (domain.UserVO, error) {
 	if s.readerRepo == nil {
 		return domain.UserVO{}, fmt.Errorf("service: 读者用户数据访问未注入")
@@ -84,7 +84,7 @@ func (s *Service) CreateReader(ctx context.Context, dto domain.ReaderCreateDTO) 
 	return toUserVO(user, []domain.RoleSimpleVO{}), nil
 }
 
-// UpdateReader 复刻 UserServiceImpl.updateUser：字段为空表示不更新。
+// UpdateReader 更新读者用户：字段为空表示不更新。
 func (s *Service) UpdateReader(ctx context.Context, id string, dto domain.ReaderUpdateDTO) (domain.UserVO, error) {
 	if s.readerRepo == nil {
 		return domain.UserVO{}, fmt.Errorf("service: 读者用户数据访问未注入")
@@ -118,12 +118,12 @@ func (s *Service) UpdateReader(ctx context.Context, id string, dto domain.Reader
 	return toUserVO(user, []domain.RoleSimpleVO{}), nil
 }
 
-// UpdateReaderStatus 复刻 UserServiceImpl.updateStatus。
+// UpdateReaderStatus 更新读者用户的启用状态。
 func (s *Service) UpdateReaderStatus(ctx context.Context, id string, status int) error {
 	return s.updateReaderField(ctx, id, func(user *domain.ReaderUser) { user.Status = status })
 }
 
-// UpdateReaderMute 复刻 UserServiceImpl.updateMute。
+// UpdateReaderMute 更新读者用户的禁言状态。
 func (s *Service) UpdateReaderMute(ctx context.Context, id string, muted int) error {
 	return s.updateReaderField(ctx, id, func(user *domain.ReaderUser) { user.Muted = muted })
 }
@@ -153,7 +153,7 @@ func (s *Service) updateReaderField(ctx context.Context, id string, apply func(*
 	return nil
 }
 
-// DeleteReader 复刻 UserServiceImpl.deleteUser：软删除，用户不存在也返回成功。
+// DeleteReader 软删除读者用户；用户不存在也返回成功（幂等）。
 func (s *Service) DeleteReader(ctx context.Context, id string) error {
 	if s.readerRepo == nil {
 		return fmt.Errorf("service: 读者用户数据访问未注入")
@@ -167,7 +167,7 @@ func (s *Service) DeleteReader(ctx context.Context, id string) error {
 	return nil
 }
 
-// AssignReaderRoles 复刻 UserServiceImpl.assignRoles：
+// AssignReaderRoles 分配读者用户角色：
 // 先软删该用户全部角色关联，再对存在的 roleId 做幂等插入（不存在的 id 丢弃）。
 func (s *Service) AssignReaderRoles(ctx context.Context, userID string, roleIDs []string) error {
 	if s.readerRepo == nil || s.roleRepo == nil {
@@ -197,7 +197,7 @@ func (s *Service) AssignReaderRoles(ctx context.Context, userID string, roleIDs 
 	})
 }
 
-// toUserVO 复刻 UserServiceImpl.toVO：角色只填 code。
+// toUserVO 构造读者用户视图：角色只填 code。
 func (s *Service) toUserVO(ctx context.Context, user *domain.ReaderUser) (domain.UserVO, error) {
 	codes, err := s.readerRepo.RoleCodes(ctx, user.ID)
 	if err != nil {

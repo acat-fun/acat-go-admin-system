@@ -12,29 +12,29 @@ import (
 
 // RoleRepo 提供角色（t_acat_role）与角色权限关联（t_acat_role_permission）数据访问。
 //
-// SQL 与 侧 RoleMapper.xml / MyBatis-Plus 通用方法逐条对齐。
+// 角色与角色权限关联的数据访问；SQL 形状稳定（测试按字面断言）。
 type RoleRepo interface {
-	// List 查询全量未删除角色（selectList(null)，all=true/下拉/工作人员角色装配使用）。
+	// List 查询全量未删除角色（all=true 列表、下拉与工作人员角色装配使用）。
 	List(ctx context.Context) ([]domain.Role, error)
 	// ListPage 分页查询未删除角色（默认分页列表）。
 	ListPage(ctx context.Context, offset, limit int) ([]domain.Role, int64, error)
-	// FindByID 按主键查询（selectById + @TableLogic）。
+	// FindByID 按主键查询未删除角色。
 	FindByID(ctx context.Context, id string) (*domain.Role, error)
-	// FindByIDs 批量按主键查询（selectBatchIds + @TableLogic），用于过滤不存在的角色 id。
+	// FindByIDs 批量按主键查询未删除角色，用于过滤不存在的角色 id。
 	FindByIDs(ctx context.Context, ids []string) ([]domain.Role, error)
-	// Insert 新增（myInsert）。
+	// Insert 新增角色。
 	Insert(ctx context.Context, role *domain.Role) error
-	// Update 按主键更新（myUpdate）。
+	// Update 按主键更新角色。
 	Update(ctx context.Context, role *domain.Role) (int64, error)
-	// SoftDelete 软删除（myDelete）。
+	// SoftDelete 软删除角色。
 	SoftDelete(ctx context.Context, id string) (int64, error)
-	// SoftDeleteUserRelations 软删除角色-用户关联（RoleMapper.deleteRoleUserRelations）。
+	// SoftDeleteUserRelations 软删除角色-用户关联。
 	SoftDeleteUserRelations(ctx context.Context, roleID string) (int64, error)
-	// SoftDeletePermissions 软删除角色全部权限关联（RoleMapper.deleteRolePermissions）。
+	// SoftDeletePermissions 软删除角色全部权限关联。
 	SoftDeletePermissions(ctx context.Context, roleID string) (int64, error)
-	// PermissionIDs 查询角色已分配权限 id（RoleMapper.selectPermissionIds）。
+	// PermissionIDs 查询角色已分配的权限 id。
 	PermissionIDs(ctx context.Context, roleID string) ([]string, error)
-	// ExistingPageIDs 查询给定 id 中真实存在的页面 id（RoleMapper.selectExistingPageIds）。
+	// ExistingPageIDs 查询给定 id 中真实存在的页面 id。
 	ExistingPageIDs(ctx context.Context, ids []string) ([]string, error)
 	// InsertPermissions 幂等写入角色权限关联并区分 resource_type（0=页面 1=按钮）。
 	InsertPermissions(ctx context.Context, roleID string, permissionIDs []string, resourceType int) (int64, error)
@@ -93,7 +93,7 @@ func (r *MySQLRoleRepo) FindByID(ctx context.Context, id string) (*domain.Role, 
 	return role, nil
 }
 
-// FindByIDs 实现 RoleRepo（selectBatchIds：仅返回存在且未删除的行）。
+// FindByIDs 实现 RoleRepo（按 id 批量查询，仅返回存在且未删除的行）。
 func (r *MySQLRoleRepo) FindByIDs(ctx context.Context, ids []string) ([]domain.Role, error) {
 	if len(ids) == 0 {
 		return []domain.Role{}, nil
@@ -107,7 +107,7 @@ func (r *MySQLRoleRepo) FindByIDs(ctx context.Context, ids []string) ([]domain.R
 	return scanRolesWithCapacity(rows, len(ids))
 }
 
-// Insert 实现 RoleRepo（myInsert：is_deleted=0 + created_at/updated_at）。
+// Insert 实现 RoleRepo（is_deleted=0，写入 created_at/updated_at）。
 func (r *MySQLRoleRepo) Insert(ctx context.Context, role *domain.Role) error {
 	const query = `
 		INSERT INTO t_acat_role (id, code, name, description, status, is_deleted, created_at, updated_at)
@@ -119,7 +119,7 @@ func (r *MySQLRoleRepo) Insert(ctx context.Context, role *domain.Role) error {
 	return nil
 }
 
-// Update 实现 RoleRepo（myUpdate：name/description/status + updated_at）。
+// Update 实现 RoleRepo（更新 name/description/status 与 updated_at）。
 func (r *MySQLRoleRepo) Update(ctx context.Context, role *domain.Role) (int64, error) {
 	const query = `
 		UPDATE t_acat_role
@@ -143,7 +143,7 @@ func (r *MySQLRoleRepo) SoftDelete(ctx context.Context, id string) (int64, error
 	return result.RowsAffected()
 }
 
-// SoftDeleteUserRelations 实现 RoleRepo（RoleMapper.deleteRoleUserRelations）。
+// SoftDeleteUserRelations 实现 RoleRepo（SET is_deleted=1）。
 func (r *MySQLRoleRepo) SoftDeleteUserRelations(ctx context.Context, roleID string) (int64, error) {
 	const query = `UPDATE t_acat_user_role SET is_deleted = 1 WHERE role_id = ? AND is_deleted = 0`
 	result, execErr := r.db.ExecContext(ctx, query, roleID)
@@ -153,7 +153,7 @@ func (r *MySQLRoleRepo) SoftDeleteUserRelations(ctx context.Context, roleID stri
 	return result.RowsAffected()
 }
 
-// SoftDeletePermissions 实现 RoleRepo（RoleMapper.deleteRolePermissions）。
+// SoftDeletePermissions 实现 RoleRepo（SET is_deleted=1）。
 func (r *MySQLRoleRepo) SoftDeletePermissions(ctx context.Context, roleID string) (int64, error) {
 	const query = `UPDATE t_acat_role_permission SET is_deleted = 1 WHERE role_id = ? AND is_deleted = 0`
 	result, execErr := r.db.ExecContext(ctx, query, roleID)
@@ -163,7 +163,7 @@ func (r *MySQLRoleRepo) SoftDeletePermissions(ctx context.Context, roleID string
 	return result.RowsAffected()
 }
 
-// PermissionIDs 实现 RoleRepo（RoleMapper.selectPermissionIds）。
+// PermissionIDs 实现 RoleRepo（按角色取未删除的权限 id）。
 func (r *MySQLRoleRepo) PermissionIDs(ctx context.Context, roleID string) ([]string, error) {
 	const query = `
 		SELECT rp.permission_id
@@ -173,7 +173,7 @@ func (r *MySQLRoleRepo) PermissionIDs(ctx context.Context, roleID string) ([]str
 	return queryStrings(ctx, r.db, query, roleID)
 }
 
-// ExistingPageIDs 实现 RoleRepo（RoleMapper.selectExistingPageIds）。
+// ExistingPageIDs 实现 RoleRepo（按 id 批量查询未删除页面）。
 func (r *MySQLRoleRepo) ExistingPageIDs(ctx context.Context, ids []string) ([]string, error) {
 	if len(ids) == 0 {
 		return []string{}, nil

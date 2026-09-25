@@ -2,11 +2,8 @@ package domain
 
 import "errors"
 
-// 本文件对应 侧文件域实体与视图：
-//   - AdminFileEntity (fun.acat.admin.system.entity.AdminFileEntity, 表 t_acat_file)
-//   - AdminFileVO     (fun.acat.admin.system.vo.AdminFileVO)
-//   - FileTypes       (fun.acat.common.constant.FileTypes)
-//   - ObjectStoragePaths (fun.acat.common.util.ObjectStoragePaths)
+// 本文件定义文件域的实体与视图（表 t_acat_file），
+// 以及文件业务类型白名单与对象存储路径规则。
 
 // 文件业务类型白名单。
 const (

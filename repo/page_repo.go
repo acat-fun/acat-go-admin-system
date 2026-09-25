@@ -68,7 +68,7 @@ func collectPageRecords(rows *sql.Rows) ([]domain.PageRecord, error) {
 	return out, nil
 }
 
-// ListPagesByScope 实现 PageRepo（AdminPageMapper.selectByScope）。
+// ListPagesByScope 实现 PageRepo（按 scope + i18n 回退名称，ORDER BY sort_order、id）。
 func (r *MySQLPageRepo) ListPagesByScope(ctx context.Context, scope int, i18nCode string) ([]domain.PageRecord, error) {
 	query := `SELECT ` + pageSelectColumns + `
 		FROM t_acat_page uc
@@ -82,7 +82,7 @@ func (r *MySQLPageRepo) ListPagesByScope(ctx context.Context, scope int, i18nCod
 	return collectPageRecords(rows)
 }
 
-// ListPagesByParentID 实现 PageRepo（AdminPageMapper.selectByParentId）。
+// ListPagesByParentID 实现 PageRepo（按 parent_id 查询子页面）。
 func (r *MySQLPageRepo) ListPagesByParentID(ctx context.Context, parentID, i18nCode string) ([]domain.PageRecord, error) {
 	query := `SELECT ` + pageSelectColumns + `
 		FROM t_acat_page uc
@@ -123,19 +123,19 @@ func (r *MySQLPageRepo) scanPlainPage(ctx context.Context, query string, args ..
 	return &record, nil
 }
 
-// FindPageByID 实现 PageRepo（selectById → WHERE id=? AND is_deleted=0）。
+// FindPageByID 实现 PageRepo（WHERE id=? AND is_deleted=0）。
 func (r *MySQLPageRepo) FindPageByID(ctx context.Context, id string) (*domain.PageRecord, error) {
 	query := `SELECT ` + pagePlainColumns + ` FROM t_acat_page WHERE id = ? AND is_deleted = 0`
 	return r.scanPlainPage(ctx, query, id)
 }
 
-// FindPageByCode 实现 PageRepo（AdminPageMapper.selectByCode，LIMIT 1）。
+// FindPageByCode 实现 PageRepo（WHERE code=? AND is_deleted=0，LIMIT 1）。
 func (r *MySQLPageRepo) FindPageByCode(ctx context.Context, code string) (*domain.PageRecord, error) {
 	query := `SELECT ` + pagePlainColumns + ` FROM t_acat_page WHERE code = ? AND is_deleted = 0 LIMIT 1`
 	return r.scanPlainPage(ctx, query, code)
 }
 
-// FindDeletedPageByCode 实现 PageRepo（AdminPageMapper.selectDeletedByCode，LIMIT 1）。
+// FindDeletedPageByCode 实现 PageRepo（WHERE code=? AND is_deleted=1，LIMIT 1）。
 func (r *MySQLPageRepo) FindDeletedPageByCode(ctx context.Context, code string) (*domain.PageRecord, error) {
 	query := `SELECT ` + pagePlainColumns + ` FROM t_acat_page WHERE code = ? AND is_deleted = 1 LIMIT 1`
 	record, err := r.scanPlainPage(ctx, query, code)
@@ -146,7 +146,7 @@ func (r *MySQLPageRepo) FindDeletedPageByCode(ctx context.Context, code string) 
 	return record, nil
 }
 
-// RestoreDeletedPage 实现 PageRepo（AdminPageMapper.restoreDeleted，手写 SQL 绕过逻辑删除条件）。
+// RestoreDeletedPage 实现 PageRepo（恢复已软删行：SET is_deleted=0，不带逻辑删除条件）。
 func (r *MySQLPageRepo) RestoreDeletedPage(ctx context.Context, record domain.PageRecord) (int64, error) {
 	const query = `UPDATE t_acat_page
 		SET is_deleted = 0, code = ?, name = ?, type = ?, path = ?, icon = ?, parent_id = ?,
@@ -167,7 +167,7 @@ func (r *MySQLPageRepo) RestoreDeletedPage(ctx context.Context, record domain.Pa
 	return affected, nil
 }
 
-// InsertPage 实现 PageRepo（myInsert：is_deleted=0 + 审计字段由 service 填充）。
+// InsertPage 实现 PageRepo（is_deleted=0，审计字段由 service 填充）。
 func (r *MySQLPageRepo) InsertPage(ctx context.Context, record domain.PageRecord) error {
 	const query = `INSERT INTO t_acat_page
 		(id, code, name, type, path, icon, parent_id, sort_order, scope, is_enabled,
@@ -181,7 +181,7 @@ func (r *MySQLPageRepo) InsertPage(ctx context.Context, record domain.PageRecord
 	return wrapError("新增页面失败", err)
 }
 
-// UpdatePage 实现 PageRepo（myUpdate + 乐观锁）。
+// UpdatePage 实现 PageRepo（乐观锁：WHERE id=? AND version=? AND is_deleted=0）。
 func (r *MySQLPageRepo) UpdatePage(ctx context.Context, record domain.PageRecord) (int64, error) {
 	const query = `UPDATE t_acat_page
 		SET code = ?, name = ?, type = ?, path = ?, icon = ?, parent_id = ?, sort_order = ?,
@@ -203,7 +203,7 @@ func (r *MySQLPageRepo) UpdatePage(ctx context.Context, record domain.PageRecord
 	return affected, nil
 }
 
-// SoftDeletePage 实现 PageRepo（deleteById）。
+// SoftDeletePage 实现 PageRepo（逻辑删除）。
 func (r *MySQLPageRepo) SoftDeletePage(ctx context.Context, id string) (int64, error) {
 	const query = `UPDATE t_acat_page SET is_deleted = 1, updated_at = ? WHERE id = ? AND is_deleted = 0`
 	result, err := r.db.ExecContext(ctx, query, domain.Now(), id)
@@ -213,7 +213,7 @@ func (r *MySQLPageRepo) SoftDeletePage(ctx context.Context, id string) (int64, e
 	return result.RowsAffected()
 }
 
-// SelectPageIDsByPermissions 实现 PageRepo（AdminPageMapper.selectPageIdsByPermissions）。
+// SelectPageIDsByPermissions 实现 PageRepo（按权限码反查页面 id）。
 func (r *MySQLPageRepo) SelectPageIDsByPermissions(ctx context.Context, permissions []string) ([]string, error) {
 	if len(permissions) == 0 {
 		return []string{}, nil
@@ -242,9 +242,9 @@ func (r *MySQLPageRepo) SelectPageIDsByPermissions(ctx context.Context, permissi
 	return out, nil
 }
 
-// InsertPageHistory 实现 PageRepo（AdminPageHistoryMapper.insert）。
+// InsertPageHistory 实现 PageRepo（写入页面变更快照）。
 //
-// id 由 IdType.ASSIGN_UUID 生成：32 位无连字符 UUID（与 UUID v7 的 36 位带连字符不同）。
+// id 由 newCompactID 生成：32 位无连字符 UUID（与 UUID v7 的 36 位带连字符不同）。
 func (r *MySQLPageRepo) InsertPageHistory(ctx context.Context, record domain.PageHistoryRecord) error {
 	const query = `INSERT INTO t_acat_page_history
 		(id, page_id, code, name, type, path, icon, parent_id, sort_order, scope, is_enabled,
@@ -260,7 +260,7 @@ func (r *MySQLPageRepo) InsertPageHistory(ctx context.Context, record domain.Pag
 	return wrapError("写入页面历史失败", err)
 }
 
-// GrantPageToRootAndAdmin 实现 PageRepo（AdminPageMapper.grantPermissionToRootAndAdmin，幂等）。
+// GrantPageToRootAndAdmin 实现 PageRepo（为 root/admin 角色授权该页面，幂等）。
 func (r *MySQLPageRepo) GrantPageToRootAndAdmin(ctx context.Context, pageID string) error {
 	const query = `INSERT INTO t_acat_role_permission (role_id, permission_id, resource_type)
 		SELECT r.id, ?, 0
@@ -277,7 +277,7 @@ func (r *MySQLPageRepo) GrantPageToRootAndAdmin(ctx context.Context, pageID stri
 	return nil
 }
 
-// RestoreRolePermissionsByPageID 实现 PageRepo（AdminPageMapper.restoreRolePermissionsByPageId）。
+// RestoreRolePermissionsByPageID 实现 PageRepo（恢复该页面此前被软删的角色授权）。
 func (r *MySQLPageRepo) RestoreRolePermissionsByPageID(ctx context.Context, pageID string) (int64, error) {
 	const query = `UPDATE t_acat_role_permission
 		SET is_deleted = 0, resource_type = 0, updated_at = NOW()
@@ -289,7 +289,7 @@ func (r *MySQLPageRepo) RestoreRolePermissionsByPageID(ctx context.Context, page
 	return result.RowsAffected()
 }
 
-// DeleteRolePermissionsByPageID 实现 PageRepo（AdminPageMapper.deleteRolePermissionsByPageId）。
+// DeleteRolePermissionsByPageID 实现 PageRepo（软删除该页面的角色授权关联）。
 func (r *MySQLPageRepo) DeleteRolePermissionsByPageID(ctx context.Context, pageID string) (int64, error) {
 	const query = `UPDATE t_acat_role_permission
 		SET is_deleted = 1, updated_at = NOW()

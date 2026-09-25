@@ -1,7 +1,7 @@
 # acat-go-admin-system — 管理端系统管理域共享 Go 模块
 
 > 管理端「系统管理」七域（字典/页面/i18n/前端模块/文件/审计日志/通知）与权限判定的共享实现，
-> 抽取自 acat-admin-system / acat-admin-user（权威源），供 acat 管理栈与 devops 平台共用。
+> 供 acat 管理栈的各服务与 devops 平台共用。
 
 ## 模块信息
 
@@ -19,8 +19,8 @@
 | `logic` | 权限码常量 + Checker/Actor（超管按角色：会话 roles 含 root） |
 | `storage` | 对象存储接口 + 内存实现 + S3/MinIO（SigV4）实现 |
 | `audit` | 审计写入器（Recorder）与路由 detail 映射 |
-| `notification` | 站内通知域（`t_acat_notification`，U10-U12 契约：列表/未读数/已读） |
-| `auth` | 用户认证与授权域（抽取自 acat-admin-user）：登录/bootstrap、工作人员、读者用户、角色、权限管理（`auth/domain`、`auth/repo`、`auth/service`、`auth/httpapi`） |
+| `notification` | 站内通知域（`t_acat_notification`：列表/未读数/已读） |
+| `auth` | 用户认证与授权域：登录/bootstrap、工作人员、读者用户、角色、权限管理（`auth/domain`、`auth/repo`、`auth/service`、`auth/httpapi`） |
 
 ## 数据契约
 

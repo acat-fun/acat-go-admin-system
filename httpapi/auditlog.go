@@ -20,7 +20,7 @@ func registerAuditLogRoutes(mux *http.ServeMux, auth authMiddleware, a *API) {
 	a.route(mux, "DELETE "+PathAuditLogs, auth, a.handleCleanAuditLogs)
 }
 
-// handleListAuditLogs 复刻 list：pageSize 默认 20（本服务唯一的非 10 默认值）。
+// handleListAuditLogs 处理 GET /audit-logs：pageSize 默认 20（本服务唯一的非 10 默认值）。
 func (a *API) handleListAuditLogs(w http.ResponseWriter, req *http.Request) {
 	if !a.requirePermission(w, req, logic.SystemAuditLogs) {
 		return
@@ -39,7 +39,7 @@ func (a *API) handleListAuditLogs(w http.ResponseWriter, req *http.Request) {
 	writeOK(w, data)
 }
 
-// handleCleanAuditLogs 复刻 clean：days 必填，返回**删除后剩余总数**。
+// handleCleanAuditLogs 处理 POST /audit-logs/clean：days 必填，返回**删除后剩余总数**。
 func (a *API) handleCleanAuditLogs(w http.ResponseWriter, req *http.Request) {
 	if !a.requirePermission(w, req, logic.SystemAuditLogs) {
 		return
@@ -61,16 +61,16 @@ func (a *API) handleCleanAuditLogs(w http.ResponseWriter, req *http.Request) {
 	middleware.WriteResult(w, result.OK(remaining))
 }
 
-// auditPageParams 复刻审计列表的分页参数语义（严格对齐 Spring + Spring Data）：
+// auditPageParams 解析审计列表的分页参数：
 //
-//   - 缺失或空串 → @RequestParam(defaultValue=…)：pageIndex=1、pageSize=20；
+//   - 缺失或空串取默认值：pageIndex=1、pageSize=20；
 //   - 非整数或超出 int 范围 → 类型绑定失败 → HTTP 500；
-//   - pageSize < 1 → `PageRequest.of` 抛 IllegalArgumentException → HTTP 500；
-//   - pageIndex < 1 合法，服务层按 `Math.max(pageIndex-1, 0)` 收敛为第 1 页；
-//   - pageSize 不设上限（Spring Data 无上限。
+//   - pageSize < 1 → HTTP 500；
+//   - pageIndex < 1 合法，服务层按 pageIndex-1 取下界 0，收敛为第 1 页；
+//   - pageSize 不设上限。
 //
 // 说明：本服务其它列表接口沿用公共库 `result.NormalizePage`（pageSize 收敛到 1..100），
-// 审计接口按
+// 审计接口按上述口径单独处理。
 func auditPageParams(req *http.Request) (int, int, error) {
 	pageIndex, err := strictQueryInt(req, "pageIndex", result.DefaultPageIndex)
 	if err != nil {
@@ -101,13 +101,10 @@ func strictQueryInt(req *http.Request, name string, fallback int) (int, error) {
 
 // writeAuditStoreError 输出审计接口失败响应。
 //
-// ServiceUnavailableException，会落到 `GlobalExceptionHandler.handleException`
-// 兜底分支 → **HTTP 500** `{"code":500,"message":"服务器内部错误"}`
-// （GlobalExceptionHandler.java:109-113；503 分支只对应显式抛出的
-// ServiceUnavailableException，见 GlobalExceptionHandler.java:79-83）。
-//
-// 因此审计接口不走公共库默认的「未知异常 → 503」口径（writeServiceError 的兜底分支），
-// 而是把基础设施异常统一映射为 500，；业务失败与语义错误仍按各自口径输出。
+// 基础设施异常统一映射为 **HTTP 500** `{"code":500,"message":"服务器内部错误"}`，
+// 不走公共库默认的「未知异常 → 503」口径（writeServiceError 的兜底分支）；
+// 503 只用于显式抛出的服务不可用异常。
+// 业务失败与语义错误仍按各自口径输出。
 func writeAuditStoreError(req *http.Request, w http.ResponseWriter, err error) {
 	if business, ok := apperr.IsBusiness(err); ok {
 		middleware.WriteResult(w, result.FailCode(business.Code, business.Message))

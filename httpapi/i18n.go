@@ -22,7 +22,7 @@ func registerI18nRoutes(mux *http.ServeMux, auth authMiddleware, a *API) {
 	a.route(mux, "GET "+PathI18nFrontendLabels, auth, a.handleFrontendLabels)
 }
 
-// handlePublicTypeOptions 复刻 GET /i18n/public/types（免登录）。
+// handlePublicTypeOptions 处理 GET /i18n/public/types（免登录）。
 func (a *API) handlePublicTypeOptions(w http.ResponseWriter, req *http.Request) {
 	data, err := a.svc.ListTypeOptions(req.Context())
 	if err != nil {
@@ -32,12 +32,12 @@ func (a *API) handlePublicTypeOptions(w http.ResponseWriter, req *http.Request) 
 	writeOK(w, data)
 }
 
-// handlePublicFrontendLabels 复刻 GET /i18n/public/frontend-labels（免登录）。
+// handlePublicFrontendLabels 处理 GET /i18n/public/frontend-labels（免登录）。
 func (a *API) handlePublicFrontendLabels(w http.ResponseWriter, req *http.Request) {
 	a.writeFrontendLabels(w, req)
 }
 
-// handleFrontendLabels 复刻 GET /i18n/frontend-labels（仅登录）。
+// handleFrontendLabels 处理 GET /i18n/frontend-labels（仅登录）。
 func (a *API) handleFrontendLabels(w http.ResponseWriter, req *http.Request) {
 	a.writeFrontendLabels(w, req)
 }
@@ -51,7 +51,7 @@ func (a *API) writeFrontendLabels(w http.ResponseWriter, req *http.Request) {
 	writeOK(w, labels)
 }
 
-// handleListI18nTypes 复刻 I18nAdminController.listTypes（三态，仅登录、无权限码）。
+// handleListI18nTypes 处理 GET /i18n/types（format=select / all=true / 分页 三态，仅登录、无权限码）。
 func (a *API) handleListI18nTypes(w http.ResponseWriter, req *http.Request) {
 	if queryString(req, "format") == "select" {
 		data, err := a.svc.ListTypeOptions(req.Context())
@@ -81,7 +81,7 @@ func (a *API) handleListI18nTypes(w http.ResponseWriter, req *http.Request) {
 	writeOK(w, data)
 }
 
-// handleCreateI18nType 复刻 POST /i18n/types。
+// handleCreateI18nType 处理 POST /i18n/types。
 func (a *API) handleCreateI18nType(w http.ResponseWriter, req *http.Request) {
 	if !a.requirePermission(w, req, logic.SystemI18nTypesCreate) {
 		return
@@ -98,7 +98,7 @@ func (a *API) handleCreateI18nType(w http.ResponseWriter, req *http.Request) {
 	writeOK(w, data)
 }
 
-// handleUpdateI18nType 复刻 PUT /i18n/types/{id}。
+// handleUpdateI18nType 处理 PUT /i18n/types/{id}。
 func (a *API) handleUpdateI18nType(w http.ResponseWriter, req *http.Request) {
 	if !a.requirePermission(w, req, logic.SystemI18nTypesEdit) {
 		return
@@ -115,7 +115,7 @@ func (a *API) handleUpdateI18nType(w http.ResponseWriter, req *http.Request) {
 	writeOK(w, data)
 }
 
-// handleDeleteI18nType 复刻 DELETE /i18n/types/{id}。
+// handleDeleteI18nType 处理 DELETE /i18n/types/{id}。
 func (a *API) handleDeleteI18nType(w http.ResponseWriter, req *http.Request) {
 	if !a.requirePermission(w, req, logic.SystemI18nTypesDelete) {
 		return

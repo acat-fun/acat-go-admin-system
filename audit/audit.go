@@ -1,20 +1,17 @@
-// Package audit 实现 `fun.acat.admin.system.aspect.AuditLogAspect` +
-// `AuditLogServiceImpl.logLogin/logOperation` 的审计写入行为。
+// Package audit 实现管理端接口的审计写入。
 //
-// 对应关系：
+// 职责划分：
 //
-//	AuditLogAspect.aroundAdminApi()      → Recorder.Wrap（HTTP 中间件，逐路由包装）
-//	AuditLogAspect.buildParams()         → requestParams（params.go）
-//	AuditLogServiceImpl.logLogin()       → Recorder.record 的登录分支
-//	AuditLogServiceImpl.logOperation()   → Recorder.record 的写操作分支
-//	AuditLogServiceImpl.getClientIp()    → clientIP
+//	Recorder.Wrap           逐路由包装，先写审计再执行业务处理器
+//	requestParams           构造 requestParams 摘要（params.go）
+//	Recorder.record         写操作与登录两类分支的落库逻辑
+//	clientIP                解析客户端 IP
 //
-// 与 的差异集中记录在 README「审计写入路径」：
+// 已知行为边界：
 //
-//  1. URI 门禁扩展（白名单是 `/api/read/admin/` 与 `/api/admin/user/`，对 admin-system
-//     自身的 `/api/admin/system/**` 是死代码）——见 InScope；
-//  2. requestParams 用「请求体/路径变量/查询参数」近似 的「Controller 方法入参 JSON」；
-//  3. 写审计是同步执行。
+//  1. URI 范围由 InScope 判定：两个固定前缀 ∪ 本服务自身的 /api/admin/system/；
+//  2. requestParams 用「请求体/路径变量/查询参数」重建参数摘要；
+//  3. 审计写入是同步执行，写失败只记 warning，不影响业务响应。
 package audit
 
 import (
@@ -31,18 +28,17 @@ import (
 	"github.com/acat-fun/acat-go-common/satoken"
 )
 
+// javaAuditPrefixes 是固定的审计范围前缀（后端网关暴露的管理端路径）。
 var javaAuditPrefixes = []string{"/api/read/admin/", "/api/admin/user/"}
 
 // SelfPrefix 是本服务自身控制器的路由前缀。
 //
-// （UAT audit_logs 4531 行中没有任何 `/api/admin/system/**` 行，见 README「UAT 交叉验证」）。
-// 按任务要求「对本服务自身的 Controller 调用写审计」，Go 侧把门禁扩展为白名单 ∪ SelfPrefix。
+// 审计范围是 javaAuditPrefixes 与 SelfPrefix 的并集，
+// 因此本服务自身 /api/admin/system/ 下的写操作与登录同样会被记录。
 const SelfPrefix = "/api/admin/system/"
 
-// InScope 判断请求路径是否属于审计范围。
-//
-// 实现:50 的 `startsWith` 判定，并额外纳入本服务自身的
-// SelfPrefix（有意差异，见包注释与 README）。
+// InScope 判断请求路径是否属于审计范围：
+// javaAuditPrefixes 任一前缀命中，或命中本服务自身的 SelfPrefix。
 func InScope(path string) bool {
 	for _, prefix := range javaAuditPrefixes {
 		if strings.HasPrefix(path, prefix) {
@@ -54,9 +50,8 @@ func InScope(path string) bool {
 
 // RouteMeta 是路由的审计元数据。
 type RouteMeta struct {
-	// Detail 格式为 `ClassName.methodName`。
-	//
-	// 例：DictAdminController.createDict。登录分支不写 detail。
+	// Detail 是写入审计 detail 字段的路由标识，形如 `ClassName.methodName`
+	// （例：DictAdminController.createDict）。登录分支不写 detail。
 	Detail string
 }
 
@@ -68,7 +63,7 @@ type Options struct {
 	Logger *slog.Logger
 	// Now 时间源，默认 time.Now（测试可注入固定时间）。
 	Now func() time.Time
-	// Location ZoneId.systemDefault() 等价物，nil 表示 UTC。
+	// Location 时间换算时区，nil 表示 UTC。
 	Location *time.Location
 }
 
@@ -111,7 +106,7 @@ func (r *Recorder) Wrap(next http.Handler, meta RouteMeta) http.Handler {
 	})
 }
 
-// record 复刻 AuditLogAspect.aroundAdminApi 的判定与写入。
+// record 按路由元数据完成范围判定、身份识别与审计写入。
 func (r *Recorder) record(req *http.Request, meta RouteMeta) {
 	path := requestPath(req)
 	if !InScope(path) {
@@ -173,7 +168,7 @@ func requestPath(req *http.Request) string {
 	return req.URL.Path
 }
 
-// identity 复刻 AuditLogAspect.java:63-74 的身份判定：
+// identity 判定请求的审计身份：
 //
 //	未登录：userId="0"、username="anonymous"、userType="APP"；
 //	已登录：userId=loginId、username=会话 username（空则 loginId）、
@@ -199,7 +194,7 @@ func identity(req *http.Request, path string) (userID, username, userType string
 	return userID, username, userType
 }
 
-// clientIP 复刻 AuditLogServiceImpl.getClientIp（X-Forwarded-For → X-Real-IP → RemoteAddr）。
+// clientIP 解析客户端 IP（X-Forwarded-For → X-Real-IP → RemoteAddr）。
 func clientIP(req *http.Request) string {
 	if value := strings.TrimSpace(req.Header.Get("X-Forwarded-For")); value != "" {
 		return value
@@ -222,5 +217,5 @@ func stringOrNil(value string) *string {
 	return &value
 }
 
-// stringPtr 返回字符串指针（区分 null 与 ""
+// stringPtr 返回字符串指针（区分 null 与空串）。
 func stringPtr(value string) *string { return &value }

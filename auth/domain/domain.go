@@ -1,10 +1,10 @@
 // Package domain 定义 admin-user 服务的领域模型与对外契约结构。
 //
-// 与 侧的对应关系：
-//   - Worker    <- fun.acat.admin.entity.AdminWorkerEntity
-//   - Page      <- fun.acat.admin.entity.AdminPageEntity
-//   - Role      <- fun.acat.admin.entity.AdminRoleEntity
-//   - FrontendModule <- fun.acat.admin.entity.AdminFrontendModuleEntity
+// 主要契约结构：
+//   - Worker：工作人员；
+//   - Page：页面；
+//   - Role：角色；
+//   - FrontendModule：前端模块。
 //
 // JSON 字段名为驼峰，ID 一律保持字符串。
 package domain
@@ -17,9 +17,8 @@ import "time"
 // 不再按登录 id 特判。
 const RootRoleID = "root"
 
-// RootLoginID 是历史口径下超级管理员固定登录 id（worker 表 id="0"）。
-//
-// Deprecated: 超管判定已统一为角色判定；本常量仅供迁移期兼容引用，新代码不要使用。
+// RootLoginID 是超级管理员固定登录 id（worker 表 id="0"），
+// 供兼容期代码与测试引用；超管判定请使用 RootRoleID 角色判定。
 const RootLoginID = "0"
 
 // IsRootRole 判断角色码列表是否包含超级管理员角色。

@@ -2,13 +2,11 @@ package domain
 
 // 本文件定义管理接口的对外视图对象（VO）与实体响应结构。
 //
-// JSON 字段名：可空列用指针承载，Go 的 nil 序列化为 null，
-// 与
+// JSON 字段名：可空列用指针承载，Go 的 nil 序列化为 null。
 
-// RoleSimpleVO。
+// RoleSimpleVO 是角色简版视图（仅 code 有值）。
 //
-// 注意：UserServiceImpl.toVO 使用 new RoleSimpleVO(null, code, null) 构造，
-// 因此 id 与 name 恒为 null，只有 code 有值，Go 侧保持同样口径。
+// id 与 name 恒为 null，只有 code 有值。
 type RoleSimpleVO struct {
 	ID   *string `json:"id"`
 	Code string  `json:"code"`

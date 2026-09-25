@@ -1,11 +1,13 @@
 // Package service 实现 admin-system 的业务逻辑。
 //
-//   - DictAdminServiceImpl          → dict_service.go
-//   - I18nAdminServiceImpl          → i18n_service.go
-//   - PageAdminServiceImpl          → page_service.go
-//   - FrontendModuleAdminServiceImpl→ frontend_module_service.go
-//   - AuditLogAdminServiceImpl      → auditlog_service.go
-//   - AdminFileServiceImpl          → file_service.go
+// 七域各自独立成文件：
+//
+//	dict_service.go            字典与字典数据项
+//	i18n_service.go            语言类型与前端运行时字典
+//	page_service.go            页面与页面树
+//	frontend_module_service.go 前端模块
+//	auditlog_service.go        审计日志
+//	file_service.go            文件
 //
 // 统一口径：
 //   - 业务失败返回 apperr.NewBusiness(消息)（HTTP 200 + body.code=1）；
@@ -39,13 +41,13 @@ const (
 	DefaultFrontendDictCode = domain.FrontendAdminDictCode
 )
 
-// 业务码：侧本服务唯一的非 1 业务码。
+// 业务码：本服务唯一的非 1 业务码。
 const (
 	// BusinessCodeFrontendModuleConflict 前端模块乐观锁冲突。
 	BusinessCodeFrontendModuleConflict = 40901
 )
 
-// 的提示文案（前端直接展示，不能改写）。
+// 业务失败提示文案（前端直接展示，不能改写）。
 const (
 	MessageDictCodeExists      = "字典编码已存在: "
 	MessageDictNotFound        = "字典不存在"
@@ -84,7 +86,7 @@ const (
 )
 
 // RequestContext 承载请求上下文信息：
-// Sa-Token 登录态（StpUtil + StpInterfaceImpl）与 I18nFilter 的语言。
+// Sa-Token 登录态（会话角色与权限快照）与请求语言。
 type RequestContext struct {
 	// I18nCode 是 Accept-Language 原样值；空则回退 zh-CN。
 	I18nCode string
@@ -122,7 +124,7 @@ type TxRunner interface {
 
 // ErrVersionConflict 表示写操作未命中任何行（并发冲突 / 记录已被改动或删除）。
 //
-// 内部哨兵：对外响应由调用方选择语义错误（见规范 §8.8.1）。
+// 内部哨兵：对外响应由调用方选择语义错误。
 var ErrVersionConflict = errors.New("service: 写入未命中任何行")
 
 // 写日志用的表名（仅用于结构化日志，不参与 SQL）。
@@ -280,7 +282,7 @@ func (s *Service) nextCompactID() string {
 
 // AuditStore 暴露审计日志存储，供 HTTP 审计中间件写入。
 //
-// Go 侧中间件在 httpapi 装配时取用同一存储实例（httpapi.New 的默认装配）。
+// httpapi 中间件在装配时取用同一存储实例（httpapi.New 的默认装配）。
 func (s *Service) AuditStore() repo.AuditLogStore { return s.audits }
 
 // business 构造业务失败（HTTP 200 + code=1）。

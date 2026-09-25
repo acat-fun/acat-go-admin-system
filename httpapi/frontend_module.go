@@ -22,7 +22,7 @@ func registerFrontendModuleRoutes(mux *http.ServeMux, auth authMiddleware, a *AP
 	a.route(mux, "PUT "+PathFrontendModules+"/{id}/publication", auth, a.handlePublishFrontendModule)
 }
 
-// handleListFrontendModules 复刻 listAll（moduleCode 空 → 全量，否则按模块码）。
+// handleListFrontendModules 处理 GET /frontend-modules（moduleCode 空 → 全量，否则按模块码过滤）。
 func (a *API) handleListFrontendModules(w http.ResponseWriter, req *http.Request) {
 	if !a.requirePermission(w, req, logic.SystemFrontendModules) {
 		return
@@ -35,7 +35,7 @@ func (a *API) handleListFrontendModules(w http.ResponseWriter, req *http.Request
 	writeOK(w, data)
 }
 
-// handleCreateFrontendModule 复刻 POST /frontend-modules。
+// handleCreateFrontendModule 处理 POST /frontend-modules。
 func (a *API) handleCreateFrontendModule(w http.ResponseWriter, req *http.Request) {
 	if !a.requireAllPermissions(w, req, logic.SystemFrontendModules, logic.SystemFrontendModulesCreate) {
 		return
@@ -56,7 +56,7 @@ func (a *API) handleCreateFrontendModule(w http.ResponseWriter, req *http.Reques
 	writeOK(w, data)
 }
 
-// handleUpdateFrontendModule 复刻 PUT /frontend-modules/{id}。
+// handleUpdateFrontendModule 处理 PUT /frontend-modules/{id}。
 func (a *API) handleUpdateFrontendModule(w http.ResponseWriter, req *http.Request) {
 	if !a.requireAllPermissions(w, req, logic.SystemFrontendModules, logic.SystemFrontendModulesEdit) {
 		return
@@ -77,7 +77,7 @@ func (a *API) handleUpdateFrontendModule(w http.ResponseWriter, req *http.Reques
 	writeOK(w, data)
 }
 
-// handlePublishFrontendModule 复刻 PUT /frontend-modules/{id}/publication（乐观锁 40901）。
+// handlePublishFrontendModule 处理 PUT /frontend-modules/{id}/publication（乐观锁冲突业务码 40901）。
 func (a *API) handlePublishFrontendModule(w http.ResponseWriter, req *http.Request) {
 	if !a.requireAllPermissions(w, req, logic.SystemFrontendModules, logic.SystemFrontendModulesPublish) {
 		return
@@ -98,9 +98,7 @@ func (a *API) handlePublishFrontendModule(w http.ResponseWriter, req *http.Reque
 	writeOK(w, data)
 }
 
-// writeValidationError 输出 Bean Validation 失败响应（HTTP 422 + "字段: 文案[; ...]"）。
-//
-// 与
+// writeValidationError 输出参数校验失败响应（HTTP 422 + "字段: 文案[; ...]"）。
 func writeValidationError(req *http.Request, w http.ResponseWriter, messages []string) {
 	body := result.FailCode(422, strings.Join(messages, "; "))
 	w.Header().Set("Content-Type", "application/json;charset=UTF-8")
@@ -108,9 +106,9 @@ func writeValidationError(req *http.Request, w http.ResponseWriter, messages []s
 	writeJSON(w, body)
 }
 
-// validateFrontendModuleSavePayload 复刻 FrontendModuleSaveParam 上的 Jakarta 校验注解。
+// validateFrontendModuleSavePayload 校验前端模块保存载荷（必填与非空约束）。
 //
-// 文案使用 Hibernate Validator 默认（英文）bundle，与容器无 LANG 时的 行为一致；
+// 文案为英文默认约束提示（与容器无 LANG 时的提示一致）；
 // 字段顺序即 record 组件声明顺序。
 func validateFrontendModuleSavePayload(payload domain.FrontendModuleSaveParam) []string {
 	messages := make([]string, 0, 4)
@@ -142,7 +140,7 @@ func validateFrontendModuleSavePayload(payload domain.FrontendModuleSaveParam) [
 	return messages
 }
 
-// validateFrontendModulePublicationPayload 复刻 FrontendModulePublicationParam 上的校验注解。
+// validateFrontendModulePublicationPayload 校验前端模块发布载荷（必填与非空约束）。
 func validateFrontendModulePublicationPayload(payload domain.FrontendModulePublicationParam) []string {
 	messages := make([]string, 0, 4)
 	messages = appendNotBlank(messages, "releaseVersion", payload.ReleaseVersion)
