@@ -3,9 +3,9 @@ package httpapi
 import (
 	"net/http"
 
-	"github.com/acat-fun/acat-go-admin-system/domain"
-	"github.com/acat-fun/acat-go-admin-system/logic"
-	"github.com/acat-fun/acat-go-admin-system/service"
+	"47.108.230.93/acat-fun/acat-go-admin-system/domain"
+	"47.108.230.93/acat-fun/acat-go-admin-system/logic"
+	"47.108.230.93/acat-fun/acat-go-admin-system/service"
 	"github.com/acat-fun/acat-go-common/middleware"
 	"github.com/acat-fun/acat-go-common/result"
 )

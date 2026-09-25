@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"github.com/acat-fun/acat-go-common/mysqlx"
 
-	"github.com/acat-fun/acat-go-admin-system/domain"
+	"47.108.230.93/acat-fun/acat-go-admin-system/domain"
 )
 
 // MySQLDictRepo 是 DictRepo + LabelRepo 的 MySQL 实现。

@@ -13,10 +13,10 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/acat-fun/acat-go-admin-system/auth/domain"
-	"github.com/acat-fun/acat-go-admin-system/auth/repo"
-	"github.com/acat-fun/acat-go-admin-system/auth/service"
-	"github.com/acat-fun/acat-go-admin-system/logic"
+	"47.108.230.93/acat-fun/acat-go-admin-system/auth/domain"
+	"47.108.230.93/acat-fun/acat-go-admin-system/auth/repo"
+	"47.108.230.93/acat-fun/acat-go-admin-system/auth/service"
+	"47.108.230.93/acat-fun/acat-go-admin-system/logic"
 	"github.com/acat-fun/acat-go-common/config"
 	"github.com/acat-fun/acat-go-common/satoken"
 )

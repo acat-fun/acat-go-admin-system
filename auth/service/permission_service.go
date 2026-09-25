@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/acat-fun/acat-go-admin-system/auth/domain"
-	"github.com/acat-fun/acat-go-admin-system/auth/repo"
+	"47.108.230.93/acat-fun/acat-go-admin-system/auth/domain"
+	"47.108.230.93/acat-fun/acat-go-admin-system/auth/repo"
 	"github.com/acat-fun/acat-go-common/apperr"
 )
 

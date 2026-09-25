@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/acat-fun/acat-go-admin-system/domain"
+	"47.108.230.93/acat-fun/acat-go-admin-system/domain"
 )
 
 // ListAuditLogs。

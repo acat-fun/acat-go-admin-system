@@ -5,7 +5,7 @@
 
 ## 模块信息
 
-- module path：`github.com/acat-fun/acat-go-admin-system`（权威源 Gitea，Push Mirror 到 GitHub）
+- module path：`47.108.230.93/acat-fun/acat-go-admin-system`（Gitea 私有仓，GOINSECURE + insteadOf 解析）
 - 依赖：`github.com/acat-fun/acat-go-common`（db/result/apperr/satoken/middleware/permission）、mongo-driver v2（审计 Mongo 存储）
 
 ## 包结构

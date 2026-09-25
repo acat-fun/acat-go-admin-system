@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/acat-fun/acat-go-admin-system/auth/domain"
+	"47.108.230.93/acat-fun/acat-go-admin-system/auth/domain"
 )
 
 // ReaderUserRepo 提供读者用户（t_acat_user）管理数据访问。

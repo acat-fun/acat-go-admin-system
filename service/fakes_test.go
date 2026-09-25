@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/acat-fun/acat-go-admin-system/domain"
-	"github.com/acat-fun/acat-go-admin-system/repo"
+	"47.108.230.93/acat-fun/acat-go-admin-system/domain"
+	"47.108.230.93/acat-fun/acat-go-admin-system/repo"
 )
 
 // 本文件提供各 repo 接口的内存假实现：service 层单测不依赖 MySQL，

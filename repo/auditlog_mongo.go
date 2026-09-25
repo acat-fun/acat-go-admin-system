@@ -10,7 +10,7 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 
-	"github.com/acat-fun/acat-go-admin-system/domain"
+	"47.108.230.93/acat-fun/acat-go-admin-system/domain"
 )
 
 // ErrAuditLogPageSizeInvalid。

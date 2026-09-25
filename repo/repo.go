@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/acat-fun/acat-go-admin-system/domain"
+	"47.108.230.93/acat-fun/acat-go-admin-system/domain"
 )
 
 // DBTX 是 *sql.DB 与 *sql.Tx 的公共能力子集：repo 只通过它访问数据库，

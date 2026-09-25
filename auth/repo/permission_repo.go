@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/acat-fun/acat-go-admin-system/auth/domain"
+	"47.108.230.93/acat-fun/acat-go-admin-system/auth/domain"
 )
 
 // PermissionRepo 提供权限码注册表（t_acat_permission）数据访问。

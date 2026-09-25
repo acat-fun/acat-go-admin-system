@@ -9,7 +9,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/acat-fun/acat-go-admin-system/auth/domain"
+	"47.108.230.93/acat-fun/acat-go-admin-system/auth/domain"
 )
 
 // ErrNotFound 表示查询无结果。

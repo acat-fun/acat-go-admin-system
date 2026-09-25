@@ -9,7 +9,7 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 
-	"github.com/acat-fun/acat-go-admin-system/auth/domain"
+	"47.108.230.93/acat-fun/acat-go-admin-system/auth/domain"
 )
 
 func newMock(t *testing.T) (*MySQLWorkerRepo, *MySQLPageRepo, *MySQLFrontendModuleRepo, sqlmock.Sqlmock, func()) {

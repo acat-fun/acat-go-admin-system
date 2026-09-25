@@ -10,9 +10,9 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 
-	"github.com/acat-fun/acat-go-admin-system/domain"
-	"github.com/acat-fun/acat-go-admin-system/repo"
-	"github.com/acat-fun/acat-go-admin-system/storage"
+	"47.108.230.93/acat-fun/acat-go-admin-system/domain"
+	"47.108.230.93/acat-fun/acat-go-admin-system/repo"
+	"47.108.230.93/acat-fun/acat-go-admin-system/storage"
 	"github.com/acat-fun/acat-go-common/db"
 )
 

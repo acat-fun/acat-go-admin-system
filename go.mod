@@ -1,4 +1,4 @@
-module github.com/acat-fun/acat-go-admin-system
+module 47.108.230.93/acat-fun/acat-go-admin-system
 
 go 1.25.0
 

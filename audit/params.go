@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/acat-fun/acat-go-admin-system/domain"
+	"47.108.230.93/acat-fun/acat-go-admin-system/domain"
 )
 
 // auditBodyCaptureLimit 是审计摘要读取请求体的上限：
