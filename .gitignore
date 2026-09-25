@@ -1,0 +1,5 @@
+vendor/
+go.sum
+dist/
+node_modules/
+.cache/
