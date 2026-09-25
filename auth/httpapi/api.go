@@ -33,7 +33,9 @@ const (
 	PathAuthUserInfo  = "/api/admin/user/auth/user-info"
 	PathAuthBootstrap = "/api/admin/user/auth/bootstrap"
 	PathAuthLogout    = "/api/admin/user/auth/logout"
-	PathMyPermissions = "/api/admin/user/permissions/my"
+	// PathAuthChangePassword 本人改密（校验原密码 → 更新密码 → 失效登录会话）。
+	PathAuthChangePassword = "/api/admin/user/auth/change-password"
+	PathMyPermissions      = "/api/admin/user/permissions/my"
 	// PathAdminPrefix 是整个 /api/admin/** 的兜底模式
 	// addPathPatterns("/api/admin/**") 对未注册路径同样生效，未登录一律 401，
 	// 而不是 Go ServeMux 默认的 404 纯文本。
@@ -98,6 +100,7 @@ func (a *API) Register(mux *http.ServeMux) {
 	mux.Handle("GET "+PathAuthUserInfo, auth(http.HandlerFunc(a.handleUserInfo)))
 	mux.Handle("GET "+PathAuthBootstrap, auth(http.HandlerFunc(a.handleBootstrap)))
 	mux.Handle("POST "+PathAuthLogout, auth(http.HandlerFunc(a.handleLogout)))
+	mux.Handle("POST "+PathAuthChangePassword, auth(http.HandlerFunc(a.handleChangePassword)))
 	mux.Handle("GET "+PathMyPermissions, auth(http.HandlerFunc(a.handleMyPermissions)))
 
 	// 管理接口（readers/workers/roles/permissions）：登录 + 处理器内权限判定。
@@ -178,6 +181,31 @@ func (a *API) handleMyPermissions(w http.ResponseWriter, req *http.Request) {
 		codes = []string{}
 	}
 	middleware.WriteResult(w, result.OK(codes))
+}
+
+// changePasswordRequest 本人改密请求体。
+type changePasswordRequest struct {
+	OldPassword string `json:"old_password"`
+	NewPassword string `json:"new_password"`
+}
+
+// handleChangePassword 修改本人密码：成功后清 Cookie，前端回到登录页重新登录。
+func (a *API) handleChangePassword(w http.ResponseWriter, req *http.Request) {
+	var payload changePasswordRequest
+	if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+		middleware.WriteError(req.Context(), w, apperr.BadRequest("请求格式错误"))
+		return
+	}
+	if err := a.svc.ChangePassword(req.Context(), loginIDFrom(req), payload.OldPassword, payload.NewPassword); err != nil {
+		if business, ok := isBusinessError(err); ok {
+			middleware.WriteResult(w, result.FailCode(business.Code, business.Message))
+			return
+		}
+		middleware.WriteError(req.Context(), w, apperr.Unavailable("修改密码失败: %v", err))
+		return
+	}
+	a.clearAuthCookie(w)
+	middleware.WriteResult(w, result.OK[any](nil))
 }
 
 func (a *API) handleLogout(w http.ResponseWriter, req *http.Request) {
