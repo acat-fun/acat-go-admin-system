@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/acat-fun/acat-go-admin-system/auth/domain"
-	"github.com/acat-fun/acat-go-admin-system/logic"
 	"github.com/acat-fun/acat-go-admin-system/auth/repo"
+	"github.com/acat-fun/acat-go-admin-system/logic"
 	"github.com/acat-fun/acat-go-common/middleware"
 	"github.com/acat-fun/acat-go-common/satoken"
 )
