@@ -233,7 +233,9 @@ func (r *MySQLPageRepo) SelectPageIDsByPermissions(ctx context.Context, permissi
 	for _, permission := range permissions {
 		args = append(args, permission)
 	}
-	query := `SELECT id FROM t_acat_page WHERE code IN (` + mysqlx.Placeholders(len(permissions)) + `) AND is_deleted = 0`
+	// 页面权限码优先取 permission_code，为空时回落稳定 code（acat 侧页面 permission_code 为空串）。
+	query := `SELECT id FROM t_acat_page WHERE COALESCE(NULLIF(permission_code, ''), code) IN (` +
+		mysqlx.Placeholders(len(permissions)) + `) AND is_deleted = 0`
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, wrapError("查询页面权限失败", err)

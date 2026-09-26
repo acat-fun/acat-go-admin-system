@@ -306,7 +306,7 @@ func TestSelectPageIDsByPermissionsUsesPlaceholders(t *testing.T) {
 	repo, mock, cleanup := newPageMock(t)
 	defer cleanup()
 
-	mock.ExpectQuery("SELECT id FROM t_acat_page WHERE code IN \\(\\?, \\?\\) AND is_deleted = 0").
+	mock.ExpectQuery("SELECT id FROM t_acat_page WHERE COALESCE\\(NULLIF\\(permission_code, ''\\), code\\) IN \\(\\?, \\?\\) AND is_deleted = 0").
 		WithArgs("a", "b").
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow("p1").AddRow("p2"))
 
