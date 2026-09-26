@@ -271,6 +271,8 @@ func (f *fakeDictRepo) updateData(record domain.DictDataRecord, checkVersion boo
 	existing.ParentID = record.ParentID
 	existing.SortOrder = record.SortOrder
 	existing.IsEnabled = record.IsEnabled
+	existing.Color = record.Color
+	existing.IsBuiltin = record.IsBuiltin
 	existing.Description = record.Description
 	existing.UpdatedAt = record.UpdatedAt
 	existing.Version++

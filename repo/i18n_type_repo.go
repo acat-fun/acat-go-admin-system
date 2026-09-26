@@ -17,12 +17,12 @@ type MySQLI18nTypeRepo struct {
 func NewI18nTypeRepo(db DBTX) *MySQLI18nTypeRepo { return &MySQLI18nTypeRepo{db: db} }
 
 // i18nTypeColumns 是语言类型查询列清单，不含 is_deleted/create_by/update_by。
-const i18nTypeColumns = "id, code, name, sort_order, is_enabled, created_at, updated_at, version"
+const i18nTypeColumns = "id, code, name, sort_order, is_enabled, is_builtin, created_at, updated_at, version"
 
 func scanI18nType(scan func(dest ...any) error) (*domain.I18nTypeRecord, error) {
 	var record domain.I18nTypeRecord
 	if err := scan(&record.ID, &record.Code, &record.Name, &record.SortOrder, &record.IsEnabled,
-		&record.CreatedAt, &record.UpdatedAt, &record.Version); err != nil {
+		&record.IsBuiltin, &record.CreatedAt, &record.UpdatedAt, &record.Version); err != nil {
 		return nil, err
 	}
 	return &record, nil
@@ -106,21 +106,21 @@ func (r *MySQLI18nTypeRepo) CountTypesByCode(ctx context.Context, code string) (
 // InsertType 实现 I18nTypeRepo（is_deleted=0，审计字段由 service 填充）。
 func (r *MySQLI18nTypeRepo) InsertType(ctx context.Context, record domain.I18nTypeRecord) error {
 	const query = `INSERT INTO t_acat_i18n_type
-		(id, code, name, sort_order, is_enabled, is_deleted, created_at, updated_at, version)
-		VALUES (?, ?, ?, ?, ?, 0, ?, ?, 0)`
+		(id, code, name, sort_order, is_enabled, is_builtin, is_deleted, created_at, updated_at, version)
+		VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, 0)`
 	_, err := r.db.ExecContext(ctx, query, record.ID, record.Code, record.Name,
-		record.SortOrder, record.IsEnabled, record.CreatedAt, record.UpdatedAt)
+		record.SortOrder, record.IsEnabled, record.IsBuiltin, record.CreatedAt, record.UpdatedAt)
 	return wrapError("新增语言类型失败", err)
 }
 
 // UpdateType 实现 I18nTypeRepo（乐观锁：WHERE id=? AND version=? AND is_deleted=0，返回影响行数）。
 func (r *MySQLI18nTypeRepo) UpdateType(ctx context.Context, record domain.I18nTypeRecord) (int64, error) {
 	const query = `UPDATE t_acat_i18n_type
-		SET code = ?, name = ?, sort_order = ?, is_enabled = ?,
+		SET code = ?, name = ?, sort_order = ?, is_enabled = ?, is_builtin = ?,
 		    created_at = ?, updated_at = ?, version = version + 1
 		WHERE id = ? AND version = ? AND is_deleted = 0`
 	result, err := r.db.ExecContext(ctx, query, record.Code, record.Name, record.SortOrder,
-		record.IsEnabled, record.CreatedAt, record.UpdatedAt, record.ID, record.Version)
+		record.IsEnabled, record.IsBuiltin, record.CreatedAt, record.UpdatedAt, record.ID, record.Version)
 	if err != nil {
 		return 0, wrapError("更新语言类型失败", err)
 	}
@@ -131,9 +131,10 @@ func (r *MySQLI18nTypeRepo) UpdateType(ctx context.Context, record domain.I18nTy
 	return affected, nil
 }
 
-// SoftDeleteType 实现 I18nTypeRepo（逻辑删除并刷新 updated_at）。
+// SoftDeleteType 实现 I18nTypeRepo（逻辑删除并刷新 updated_at；内置行不参与删除，配合服务层判定兜底）。
 func (r *MySQLI18nTypeRepo) SoftDeleteType(ctx context.Context, id string) (int64, error) {
-	const query = `UPDATE t_acat_i18n_type SET is_deleted = 1, updated_at = ? WHERE id = ? AND is_deleted = 0`
+	const query = `UPDATE t_acat_i18n_type SET is_deleted = 1, updated_at = ?
+		WHERE id = ? AND is_deleted = 0 AND is_builtin = 0`
 	result, err := r.db.ExecContext(ctx, query, domain.Now(), id)
 	if err != nil {
 		return 0, wrapError("删除语言类型失败", err)

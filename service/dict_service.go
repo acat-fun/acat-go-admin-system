@@ -104,6 +104,7 @@ func (s *Service) CreateDict(ctx context.Context, rc RequestContext, payload dom
 		IsEnabled:   isEnabled,
 		IsTree:      isTree,
 		Scope:       scope,
+		IsBuiltin:   intValueOr(payload.IsBuiltin, 0),
 		Description: payload.Description,
 		CreatedAt:   now,
 		UpdatedAt:   now,
@@ -148,6 +149,9 @@ func (s *Service) UpdateDict(ctx context.Context, rc RequestContext, id string, 
 	if payload.Scope != nil {
 		existing.Scope = *payload.Scope
 	}
+	if payload.IsBuiltin != nil {
+		existing.IsBuiltin = *payload.IsBuiltin
+	}
 	if payload.Description != nil {
 		existing.Description = payload.Description
 	}
@@ -182,6 +186,9 @@ func (s *Service) DeleteDict(ctx context.Context, id string) error {
 			return business(MessageDictNotFound)
 		}
 		return err
+	}
+	if dict.IsBuiltin == 1 {
+		return business(MessageDictBuiltinUndeletable)
 	}
 	items, err := s.dicts.ListAllDataItems(ctx, dict.ID, nil)
 	if err != nil {
@@ -374,6 +381,8 @@ func (s *Service) CreateDataItem(ctx context.Context, rc RequestContext, dictID 
 		AgeLevel:    intValueOr(payload.AgeLevel, 8),
 		SortOrder:   sortOrder,
 		IsEnabled:   isEnabled,
+		Color:       domain.DerefString(payload.Color),
+		IsBuiltin:   intValueOr(payload.IsBuiltin, 0),
 		Description: payload.Description,
 		CreatedAt:   now,
 		UpdatedAt:   now,
@@ -448,6 +457,12 @@ func (s *Service) UpdateDataItem(ctx context.Context, rc RequestContext, dictID,
 	if payload.IsEnabled != nil {
 		existing.IsEnabled = *payload.IsEnabled
 	}
+	if payload.Color != nil {
+		existing.Color = *payload.Color
+	}
+	if payload.IsBuiltin != nil {
+		existing.IsBuiltin = *payload.IsBuiltin
+	}
 	if payload.Description != nil {
 		existing.Description = payload.Description
 	}
@@ -492,6 +507,9 @@ func (s *Service) DeleteDataItem(ctx context.Context, dictID, id string, cascade
 	if existing.DictID != realID {
 		return business(MessageDictDataNotFound)
 	}
+	if existing.IsBuiltin == 1 {
+		return business(MessageDictDataBuiltinUndeletable)
+	}
 	// 事务边界：级联软删 + 标签清理同生共死。
 	return s.tx.Within(ctx, func(ctx context.Context) error {
 		if !cascade {
@@ -507,9 +525,16 @@ func (s *Service) DeleteDataItem(ctx context.Context, dictID, id string, cascade
 			s.warnIfNotUpdated(writeFact("deleteDataItem.labels", TableI18nLabel, id, nil, labels))
 			return nil
 		}
-		ids, err := s.collectDescendantIDs(ctx, realID, id)
+		descendants, err := s.collectDescendants(ctx, realID, id)
 		if err != nil {
 			return err
+		}
+		ids := make([]string, 0, len(descendants)+1)
+		for _, item := range descendants {
+			if item.IsBuiltin == 1 {
+				return business(MessageDictDataBuiltinUndeletable)
+			}
+			ids = append(ids, item.ID)
 		}
 		ids = append(ids, id)
 		for _, target := range ids {
@@ -576,6 +601,8 @@ func (s *Service) batchSaveDataItems(ctx context.Context, rc RequestContext, dic
 				AgeLevel:    intValueOr(payload.AgeLevel, 8),
 				SortOrder:   intValueOr(payload.SortOrder, 0),
 				IsEnabled:   intValueOr(payload.IsEnabled, 1),
+				Color:       domain.DerefString(payload.Color),
+				IsBuiltin:   intValueOr(payload.IsBuiltin, 0),
 				Description: payload.Description,
 				CreatedAt:   now,
 				UpdatedAt:   now,
@@ -588,6 +615,10 @@ func (s *Service) batchSaveDataItems(ctx context.Context, rc RequestContext, dic
 			inserted := record.ID
 			payloads[index].ID = &inserted
 		case payload.ID != nil && !payload.DictDataDeleted():
+			isBuiltin, err := s.batchSaveBuiltinFlag(ctx, *payload.ID, payload.IsBuiltin)
+			if err != nil {
+				return err
+			}
 			record := domain.DictDataRecord{
 				ID:          *payload.ID,
 				DictID:      realID,
@@ -598,6 +629,8 @@ func (s *Service) batchSaveDataItems(ctx context.Context, rc RequestContext, dic
 				AgeLevel:    intValueOr(payload.AgeLevel, 8),
 				SortOrder:   intValueOr(payload.SortOrder, 0),
 				IsEnabled:   intValueOr(payload.IsEnabled, 1),
+				Color:       domain.DerefString(payload.Color),
+				IsBuiltin:   isBuiltin,
 				Description: payload.Description,
 				CreatedAt:   now,
 				UpdatedAt:   now,
@@ -673,22 +706,38 @@ func (s *Service) dictIDByCode(ctx context.Context, code string) (string, error)
 	return record.ID, nil
 }
 
-// collectDescendantIDs。
-func (s *Service) collectDescendantIDs(ctx context.Context, dictID, parentID string) ([]string, error) {
+// collectDescendants 递归收集指定父级下的全部子孙数据项。
+func (s *Service) collectDescendants(ctx context.Context, dictID, parentID string) ([]domain.DictDataRecord, error) {
 	children, err := s.dicts.ListChildDataItems(ctx, dictID, parentID)
 	if err != nil {
 		return nil, err
 	}
-	out := make([]string, 0, len(children))
+	out := make([]domain.DictDataRecord, 0, len(children))
 	for _, child := range children {
-		out = append(out, child.ID)
-		nested, nestedErr := s.collectDescendantIDs(ctx, dictID, child.ID)
+		out = append(out, child)
+		nested, nestedErr := s.collectDescendants(ctx, dictID, child.ID)
 		if nestedErr != nil {
 			return nil, nestedErr
 		}
 		out = append(out, nested...)
 	}
 	return out, nil
+}
+
+// batchSaveBuiltinFlag 解析批量保存的目标内置标记：
+// 显式携带时按携带值，未携带时沿用库中原值（避免批量保存清掉内置标记）。
+func (s *Service) batchSaveBuiltinFlag(ctx context.Context, id string, value *int) (int, error) {
+	if value != nil {
+		return *value, nil
+	}
+	stored, err := s.dicts.FindDataItemByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, repo.ErrNotFound) {
+			return 0, nil
+		}
+		return 0, err
+	}
+	return stored.IsBuiltin, nil
 }
 
 // validateFrontendLabelCode。
@@ -738,6 +787,7 @@ func (s *Service) toDictVO(ctx context.Context, rc RequestContext, record domain
 		IsEnabled:   intPtr(record.IsEnabled),
 		IsTree:      intPtr(record.IsTree),
 		Scope:       intPtr(record.Scope),
+		IsBuiltin:   intPtr(record.IsBuiltin),
 		Description: description,
 		I18nValue:   toI18nValues(labels),
 		DataItems:   nil,
@@ -772,6 +822,8 @@ func (s *Service) toDictDataVOs(ctx context.Context, rc RequestContext, records 
 			AgeLevel:    intPtr(record.AgeLevel),
 			SortOrder:   intPtr(record.SortOrder),
 			IsEnabled:   intPtr(record.IsEnabled),
+			Color:       record.Color,
+			IsBuiltin:   intPtr(record.IsBuiltin),
 			Description: record.Description,
 			I18nValue:   toI18nValues(labels),
 			Children:    nil,
@@ -831,6 +883,7 @@ func dictEntityFromRecord(record domain.DictRecord) domain.AdminDictEntity {
 		IsEnabled:   intPtr(record.IsEnabled),
 		IsTree:      intPtr(record.IsTree),
 		Scope:       intPtr(record.Scope),
+		IsBuiltin:   intPtr(record.IsBuiltin),
 		Description: record.Description,
 	}
 }
@@ -852,6 +905,8 @@ func dictDataEntityFromRecord(record domain.DictDataRecord) domain.AdminDictData
 		AgeLevel:    intPtr(record.AgeLevel),
 		SortOrder:   intPtr(record.SortOrder),
 		IsEnabled:   intPtr(record.IsEnabled),
+		Color:       record.Color,
+		IsBuiltin:   intPtr(record.IsBuiltin),
 		Description: record.Description,
 	}
 }

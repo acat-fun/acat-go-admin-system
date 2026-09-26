@@ -49,20 +49,24 @@ const (
 
 // 业务失败提示文案（前端直接展示，不能改写）。
 const (
-	MessageDictCodeExists      = "字典编码已存在: "
-	MessageDictNotFound        = "字典不存在"
-	MessageDictDataParentNotFd = "父级数据项不存在"
-	MessageDictDataNotFound    = "数据项不存在"
+	MessageDictCodeExists             = "字典编码已存在: "
+	MessageDictNotFound               = "字典不存在"
+	MessageDictBuiltinUndeletable     = "内置字典不可删除"
+	MessageDictDataParentNotFd        = "父级数据项不存在"
+	MessageDictDataNotFound           = "数据项不存在"
+	MessageDictDataBuiltinUndeletable = "内置字典项不可删除"
 
-	MessageI18nCodeExists = "语言编码已存在: "
-	MessageI18nTypeGone   = "语言类型不存在"
+	MessageI18nCodeExists             = "语言编码已存在: "
+	MessageI18nTypeGone               = "语言类型不存在"
+	MessageI18nTypeBuiltinUndeletable = "内置语言类型不可删除"
 
-	MessagePagePathRequired     = "页面路径不能为空"
-	MessagePageParentNotFound   = "父级 页面不存在"
-	MessagePageParentNotAdmin   = "父级页面不属于后台"
-	MessagePageNotFound         = "页面不存在"
-	MessagePageRouteKeyInvalid  = "远程页面 routeKey 格式不合法"
-	MessagePageModuleNotEnabled = "引用的前端模块不存在或未启用"
+	MessagePagePathRequired       = "页面路径不能为空"
+	MessagePageParentNotFound     = "父级 页面不存在"
+	MessagePageParentNotAdmin     = "父级页面不属于后台"
+	MessagePageNotFound           = "页面不存在"
+	MessagePageBuiltinUndeletable = "内置页面不可删除"
+	MessagePageRouteKeyInvalid    = "远程页面 routeKey 格式不合法"
+	MessagePageModuleNotEnabled   = "引用的前端模块不存在或未启用"
 
 	MessageModuleNotFound        = "前端模块不存在"
 	MessageModuleCodeImmutable   = "模块代码创建后不可修改"

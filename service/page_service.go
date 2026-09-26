@@ -130,8 +130,11 @@ func (s *Service) CreatePage(ctx context.Context, rc RequestContext, payload dom
 		SortOrder:          sortOrder,
 		Scope:              scope,
 		IsEnabled:          isEnabled,
+		IsBuiltin:          intValueOr(payload.IsBuiltin, 0),
 		FrontendModuleCode: payload.FrontendModuleCode,
 		RouteKey:           payload.RouteKey,
+		PermissionCode:     domain.DerefString(payload.PermissionCode),
+		Description:        domain.DerefString(payload.Description),
 		CreatedAt:          now,
 		UpdatedAt:          now,
 		Version:            0,
@@ -146,6 +149,10 @@ func (s *Service) CreatePage(ctx context.Context, rc RequestContext, payload dom
 	}
 	if deleted != nil {
 		record.ID = deleted.ID
+		if payload.IsBuiltin == nil {
+			// 未显式指定时沿用原行的内置标记。
+			record.IsBuiltin = deleted.IsBuiltin
+		}
 		if _, err := s.pages.RestoreDeletedPage(ctx, record); err != nil {
 			return nil, err
 		}
@@ -228,8 +235,17 @@ func (s *Service) UpdatePage(ctx context.Context, rc RequestContext, id string, 
 	if payload.IsEnabled != nil {
 		existing.IsEnabled = *payload.IsEnabled
 	}
+	if payload.IsBuiltin != nil {
+		existing.IsBuiltin = *payload.IsBuiltin
+	}
 	existing.FrontendModuleCode = payload.FrontendModuleCode
 	existing.RouteKey = payload.RouteKey
+	if payload.PermissionCode != nil {
+		existing.PermissionCode = *payload.PermissionCode
+	}
+	if payload.Description != nil {
+		existing.Description = *payload.Description
+	}
 
 	if err := s.validatePageSource(ctx, *existing); err != nil {
 		return nil, err
@@ -278,6 +294,9 @@ func (s *Service) deletePageRecursive(ctx context.Context, rc RequestContext, id
 			return business(MessagePageNotFound)
 		}
 		return err
+	}
+	if existing.IsBuiltin == 1 {
+		return business(MessagePageBuiltinUndeletable)
 	}
 	if err := s.savePageHistory(ctx, *existing); err != nil {
 		return err
@@ -449,8 +468,11 @@ func (s *Service) toPageVOs(ctx context.Context, records []domain.PageRecord) ([
 			SortOrder:          intPtr(record.SortOrder),
 			Scope:              intPtr(record.Scope),
 			IsEnabled:          intPtr(record.IsEnabled),
+			IsBuiltin:          intPtr(record.IsBuiltin),
 			FrontendModuleCode: record.FrontendModuleCode,
 			RouteKey:           record.RouteKey,
+			PermissionCode:     record.PermissionCode,
+			Description:        record.Description,
 			I18nValue:          toI18nValues(labels),
 			CreatedAt:          domain.StringOrNil(domain.FormatDateTime(record.CreatedAt)),
 			UpdatedAt:          domain.StringOrNil(domain.FormatDateTime(record.UpdatedAt)),
@@ -475,7 +497,10 @@ func pageEntityFromRecord(record domain.PageRecord) domain.AdminPageEntity {
 		SortOrder:          intPtr(record.SortOrder),
 		Scope:              intPtr(record.Scope),
 		IsEnabled:          intPtr(record.IsEnabled),
+		IsBuiltin:          intPtr(record.IsBuiltin),
 		FrontendModuleCode: record.FrontendModuleCode,
 		RouteKey:           record.RouteKey,
+		PermissionCode:     record.PermissionCode,
+		Description:        record.Description,
 	}
 }

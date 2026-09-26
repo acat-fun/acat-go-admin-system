@@ -15,6 +15,7 @@ type I18nTypeSavePayload struct {
 	Name      *string `json:"name"`
 	SortOrder *int    `json:"sortOrder"`
 	IsEnabled *int    `json:"isEnabled"`
+	IsBuiltin *int    `json:"isBuiltin"`
 }
 
 // ListTypeOptions。
@@ -100,6 +101,7 @@ func (s *Service) CreateType(ctx context.Context, rc RequestContext, payload I18
 		Name:      domain.DerefString(payload.Name),
 		SortOrder: intValueOr(payload.SortOrder, 0),
 		IsEnabled: intValueOr(payload.IsEnabled, 1),
+		IsBuiltin: intValueOr(payload.IsBuiltin, 0),
 		CreatedAt: now,
 		UpdatedAt: now,
 		Version:   0,
@@ -136,6 +138,9 @@ func (s *Service) UpdateType(ctx context.Context, rc RequestContext, id string, 
 	if payload.IsEnabled != nil {
 		existing.IsEnabled = *payload.IsEnabled
 	}
+	if payload.IsBuiltin != nil {
+		existing.IsBuiltin = *payload.IsBuiltin
+	}
 	existing.UpdatedAt = s.now()
 	if _, err := s.i18nTypes.UpdateType(ctx, *existing); err != nil {
 		return nil, err
@@ -149,11 +154,15 @@ func (s *Service) UpdateType(ctx context.Context, rc RequestContext, id string, 
 
 // DeleteType。
 func (s *Service) DeleteType(ctx context.Context, id string) error {
-	if _, err := s.i18nTypes.FindTypeByID(ctx, id); err != nil {
+	existing, err := s.i18nTypes.FindTypeByID(ctx, id)
+	if err != nil {
 		if errors.Is(err, repo.ErrNotFound) {
 			return business(MessageI18nTypeGone)
 		}
 		return err
+	}
+	if existing.IsBuiltin == 1 {
+		return business(MessageI18nTypeBuiltinUndeletable)
 	}
 	deleted, err := s.i18nTypes.SoftDeleteType(ctx, id)
 	if err != nil {
@@ -175,5 +184,6 @@ func i18nTypeEntityFromRecord(record domain.I18nTypeRecord) domain.I18nTypeEntit
 		Name:      record.Name,
 		SortOrder: intPtr(record.SortOrder),
 		IsEnabled: intPtr(record.IsEnabled),
+		IsBuiltin: intPtr(record.IsBuiltin),
 	}
 }

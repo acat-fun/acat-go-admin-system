@@ -35,14 +35,14 @@ func TestFindDictByIDUsesSoftDeleteFilter(t *testing.T) {
 	query := regexp.QuoteMeta("SELECT " + dictColumns + " FROM t_acat_dict WHERE id = ? AND is_deleted = 0")
 	mock.ExpectQuery(query).WithArgs("d1").
 		WillReturnRows(sqlmock.NewRows([]string{"id", "code", "name", "is_enabled", "is_tree", "scope",
-			"description", "created_at", "updated_at", "version"}).
-			AddRow("d1", "book_tag", "书籍标签", 1, 0, 1, nil, time.Now(), time.Now(), 0))
+			"description", "is_builtin", "created_at", "updated_at", "version"}).
+			AddRow("d1", "book_tag", "书籍标签", 1, 0, 1, nil, 0, time.Now(), time.Now(), 0))
 
 	record, err := repo.FindDictByID(context.Background(), "d1")
 	if err != nil {
 		t.Fatalf("查询失败: %v", err)
 	}
-	if record.Code != "book_tag" || record.Description != nil {
+	if record.Code != "book_tag" || record.Description != nil || record.IsBuiltin != 0 {
 		t.Fatalf("结果异常: %+v", record)
 	}
 }
@@ -67,9 +67,9 @@ func TestFindDictByCodeRejectsMultipleRows(t *testing.T) {
 	mock.ExpectQuery("FROM t_acat_dict WHERE code = \\? AND is_deleted = 0 LIMIT 2").
 		WithArgs("dup").
 		WillReturnRows(sqlmock.NewRows([]string{"id", "code", "name", "is_enabled", "is_tree", "scope",
-			"description", "created_at", "updated_at", "version"}).
-			AddRow("d1", "dup", "一", 1, 0, 0, nil, time.Now(), time.Now(), 0).
-			AddRow("d2", "dup", "二", 1, 0, 1, nil, time.Now(), time.Now(), 0))
+			"description", "is_builtin", "created_at", "updated_at", "version"}).
+			AddRow("d1", "dup", "一", 1, 0, 0, nil, 0, time.Now(), time.Now(), 0).
+			AddRow("d2", "dup", "二", 1, 0, 1, nil, 0, time.Now(), time.Now(), 0))
 
 	_, err := repo.FindDictByCode(context.Background(), "dup")
 	if !errors.Is(err, ErrMultipleResults) {
@@ -89,8 +89,8 @@ func TestListDictsBuildsFiltersAndOrder(t *testing.T) {
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT "+dictColumns+" FROM t_acat_dict WHERE is_deleted = 0 AND name LIKE ? AND is_enabled = ? AND scope = ? ORDER BY created_at DESC LIMIT ? OFFSET ?")).
 		WithArgs("%标签%", 1, 0, 10, 0).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "code", "name", "is_enabled", "is_tree", "scope",
-			"description", "created_at", "updated_at", "version"}).
-			AddRow("d1", "book_tag", "书籍标签", 1, 0, 0, nil, time.Now(), time.Now(), 0))
+			"description", "is_builtin", "created_at", "updated_at", "version"}).
+			AddRow("d1", "book_tag", "书籍标签", 1, 0, 0, nil, 0, time.Now(), time.Now(), 0))
 
 	records, total, err := repo.ListDicts(context.Background(),
 		domain.DictFilter{Name: "标签", IsEnabled: &enabled, Scope: &scope}, 1, 10)
@@ -111,7 +111,7 @@ func TestListDictsOffsetForSecondPage(t *testing.T) {
 	mock.ExpectQuery("FROM t_acat_dict WHERE is_deleted = 0 ORDER BY created_at DESC LIMIT \\? OFFSET \\?").
 		WithArgs(5, 5).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "code", "name", "is_enabled", "is_tree", "scope",
-			"description", "created_at", "updated_at", "version"}))
+			"description", "is_builtin", "created_at", "updated_at", "version"}))
 
 	if _, _, err := repo.ListDicts(context.Background(), domain.DictFilter{}, 2, 5); err != nil {
 		t.Fatalf("查询失败: %v", err)
@@ -123,11 +123,11 @@ func TestInsertDictWritesAuditColumns(t *testing.T) {
 	defer cleanup()
 
 	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO t_acat_dict")).
-		WithArgs("d1", "book_tag", "书籍标签", 1, 0, 1, nil, "0", "0", sqlmock.AnyArg(), sqlmock.AnyArg()).
+		WithArgs("d1", "book_tag", "书籍标签", 1, 0, 1, nil, 1, "0", "0", sqlmock.AnyArg(), sqlmock.AnyArg()).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
 	err := repo.InsertDict(context.Background(), domain.DictRecord{
-		ID: "d1", Code: "book_tag", Name: "书籍标签", IsEnabled: 1, IsTree: 0, Scope: 1,
+		ID: "d1", Code: "book_tag", Name: "书籍标签", IsEnabled: 1, IsTree: 0, Scope: 1, IsBuiltin: 1,
 		CreatedAt: time.Now(), UpdatedAt: time.Now(), CreateBy: strPtr("0"), UpdateBy: strPtr("0"),
 	})
 	if err != nil {
@@ -158,7 +158,7 @@ func TestSoftDeleteDictSetsFlag(t *testing.T) {
 	repo, mock, cleanup := newDictMock(t)
 	defer cleanup()
 
-	mock.ExpectExec(regexp.QuoteMeta("UPDATE t_acat_dict SET is_deleted = 1, updated_at = ? WHERE id = ? AND is_deleted = 0")).
+	mock.ExpectExec(regexp.QuoteMeta("UPDATE t_acat_dict SET is_deleted = 1, updated_at = ? WHERE id = ? AND is_deleted = 0 AND is_builtin = 0")).
 		WithArgs(sqlmock.AnyArg(), "d1").
 		WillReturnResult(sqlmock.NewResult(0, 1))
 
@@ -235,11 +235,12 @@ func TestPageListByScopeJoinsI18nLabel(t *testing.T) {
 		WithArgs("zh-CN", 0).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "code", "name", "type", "path", "icon", "parent_id",
 			"sort_order", "scope", "is_enabled", "frontend_module_code", "route_key",
+			"permission_code", "is_builtin", "description",
 			"created_at", "updated_at", "version"}).
 			AddRow("p1", "acat:admin:system", "系统管理", 0, "/admin/system", "SettingOutlined", nil,
-				1, 0, 1, "system", nil, created, updated, 0).
+				1, 0, 1, "system", nil, "", 0, "", created, updated, 0).
 			AddRow("p2", "acat:admin:system:dicts", "字典管理", 2, "/admin/system/dicts", nil, "p1",
-				2, 0, 1, "system", "system.config.dicts", created, updated, 0))
+				2, 0, 1, "system", "system.config.dicts", "acat:admin:system:dicts:view", 1, "字典页", created, updated, 0))
 
 	pages, err := repo.ListPagesByScope(context.Background(), 0, "zh-CN")
 	if err != nil {
@@ -247,6 +248,10 @@ func TestPageListByScopeJoinsI18nLabel(t *testing.T) {
 	}
 	if len(pages) != 2 || pages[0].ParentID != nil || pages[1].ParentID == nil || *pages[1].ParentID != "p1" {
 		t.Fatalf("结果异常: %+v", pages)
+	}
+	if pages[1].PermissionCode != "acat:admin:system:dicts:view" || pages[1].IsBuiltin != 1 ||
+		pages[1].Description != "字典页" {
+		t.Errorf("新列映射异常: %+v", pages[1])
 	}
 	// 审计列必须被 SELECT 并映射为 时间文本。
 	if got := domain.FormatDateTime(pages[0].CreatedAt); got != "2026-08-01T09:00:57" {
@@ -487,12 +492,15 @@ func TestI18nTypeListUsesKeywordAndEnabled(t *testing.T) {
 	mock.ExpectQuery("FROM t_acat_i18n_type WHERE is_deleted = 0 AND \\(code LIKE \\? OR name LIKE \\?\\) AND is_enabled = \\? ORDER BY sort_order ASC, code ASC LIMIT \\? OFFSET \\?").
 		WithArgs("%en%", "%en%", 1, 10, 0).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "code", "name", "sort_order", "is_enabled",
-			"created_at", "updated_at", "version"}).
-			AddRow("t1", "en", "English", 2, 1, time.Now(), time.Now(), 0))
+			"is_builtin", "created_at", "updated_at", "version"}).
+			AddRow("t1", "en", "English", 2, 1, 0, time.Now(), time.Now(), 0))
 
 	records, total, err := repo.ListTypesPaged(context.Background(), "en", &enabled, 1, 10)
 	if err != nil || total != 1 || len(records) != 1 {
 		t.Fatalf("查询失败: %+v %d %v", records, total, err)
+	}
+	if records[0].IsBuiltin != 0 {
+		t.Fatalf("内置标记异常: %+v", records[0])
 	}
 }
 
@@ -502,8 +510,8 @@ func TestI18nTypeListEnabledForcesFlag(t *testing.T) {
 
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT " + i18nTypeColumns + " FROM t_acat_i18n_type WHERE is_deleted = 0 AND is_enabled = 1 ORDER BY sort_order ASC, code ASC")).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "code", "name", "sort_order", "is_enabled",
-			"created_at", "updated_at", "version"}).
-			AddRow("t1", "zh-CN", "中文", 1, 1, time.Now(), time.Now(), 0))
+			"is_builtin", "created_at", "updated_at", "version"}).
+			AddRow("t1", "zh-CN", "中文", 1, 1, 0, time.Now(), time.Now(), 0))
 
 	if _, err := repo.ListEnabledTypes(context.Background()); err != nil {
 		t.Fatalf("查询失败: %v", err)

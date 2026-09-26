@@ -19,10 +19,10 @@ type MySQLDictRepo struct {
 func NewDictRepo(db DBTX) *MySQLDictRepo { return &MySQLDictRepo{db: db} }
 
 // dictColumns 是查询列清单，不含 is_deleted/create_by/update_by。
-const dictColumns = "id, code, name, is_enabled, is_tree, scope, description, created_at, updated_at, version"
+const dictColumns = "id, code, name, is_enabled, is_tree, scope, description, is_builtin, created_at, updated_at, version"
 
 // dictDataColumns 是数据项查询列清单，不含 is_deleted/create_by/update_by。
-const dictDataColumns = "id, dict_id, parent_id, code, name, value, age_level, sort_order, is_enabled, description, created_at, updated_at, version"
+const dictDataColumns = "id, dict_id, parent_id, code, name, value, age_level, sort_order, is_enabled, description, is_builtin, color, created_at, updated_at, version"
 
 func scanDictRow(scan func(dest ...any) error) (*domain.DictRecord, error) {
 	var (
@@ -30,7 +30,7 @@ func scanDictRow(scan func(dest ...any) error) (*domain.DictRecord, error) {
 		description sql.NullString
 	)
 	if err := scan(&record.ID, &record.Code, &record.Name, &record.IsEnabled, &record.IsTree,
-		&record.Scope, &description, &record.CreatedAt, &record.UpdatedAt, &record.Version); err != nil {
+		&record.Scope, &description, &record.IsBuiltin, &record.CreatedAt, &record.UpdatedAt, &record.Version); err != nil {
 		return nil, err
 	}
 	record.Description = mysqlx.NullString(description)
@@ -178,12 +178,13 @@ func (r *MySQLDictRepo) CountDictsByCode(ctx context.Context, code string) (int6
 // 这里由 service 组装完整 record（含审计字段）后一次性写入。
 func (r *MySQLDictRepo) InsertDict(ctx context.Context, record domain.DictRecord) error {
 	const query = `INSERT INTO t_acat_dict
-		(id, code, name, is_enabled, is_tree, scope, description, is_deleted,
+		(id, code, name, is_enabled, is_tree, scope, description, is_builtin, is_deleted,
 		 create_by, update_by, created_at, updated_at, version)
-		VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, 0)`
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, 0)`
 	_, err := r.db.ExecContext(ctx, query,
 		record.ID, record.Code, record.Name, record.IsEnabled, record.IsTree, record.Scope,
-		mysqlx.Arg(record.Description), record.CreateBy, record.UpdateBy, record.CreatedAt, record.UpdatedAt)
+		mysqlx.Arg(record.Description), record.IsBuiltin,
+		record.CreateBy, record.UpdateBy, record.CreatedAt, record.UpdatedAt)
 	return wrapError("新增字典失败", err)
 }
 
@@ -193,11 +194,11 @@ func (r *MySQLDictRepo) InsertDict(ctx context.Context, record domain.DictRecord
 func (r *MySQLDictRepo) UpdateDict(ctx context.Context, record domain.DictRecord) (int64, error) {
 	const query = `UPDATE t_acat_dict
 		SET code = ?, name = ?, is_enabled = ?, is_tree = ?, scope = ?, description = ?,
-		    created_at = ?, update_by = ?, updated_at = ?, version = version + 1
+		    is_builtin = ?, created_at = ?, update_by = ?, updated_at = ?, version = version + 1
 		WHERE id = ? AND version = ? AND is_deleted = 0`
 	result, err := r.db.ExecContext(ctx, query,
 		record.Code, record.Name, record.IsEnabled, record.IsTree, record.Scope,
-		mysqlx.Arg(record.Description), record.CreatedAt, record.UpdateBy, record.UpdatedAt,
+		mysqlx.Arg(record.Description), record.IsBuiltin, record.CreatedAt, record.UpdateBy, record.UpdatedAt,
 		record.ID, record.Version)
 	if err != nil {
 		return 0, wrapError("更新字典失败", err)
@@ -209,9 +210,10 @@ func (r *MySQLDictRepo) UpdateDict(ctx context.Context, record domain.DictRecord
 	return affected, nil
 }
 
-// SoftDeleteDict 实现 DictRepo（逻辑删除：SET is_deleted=1）。
+// SoftDeleteDict 实现 DictRepo（逻辑删除：SET is_deleted=1；内置行不参与删除，配合服务层判定兜底）。
 func (r *MySQLDictRepo) SoftDeleteDict(ctx context.Context, id string) (int64, error) {
-	const query = `UPDATE t_acat_dict SET is_deleted = 1, updated_at = ? WHERE id = ? AND is_deleted = 0`
+	const query = `UPDATE t_acat_dict SET is_deleted = 1, updated_at = ?
+		WHERE id = ? AND is_deleted = 0 AND is_builtin = 0`
 	result, err := r.db.ExecContext(ctx, query, domain.Now(), id)
 	if err != nil {
 		return 0, wrapError("删除字典失败", err)
@@ -231,8 +233,8 @@ func scanDictDataRow(scan func(dest ...any) error) (*domain.DictDataRecord, erro
 		description sql.NullString
 	)
 	if err := scan(&record.ID, &record.DictID, &parentID, &record.Code, &record.Name, &record.Value,
-		&ageLevel, &record.SortOrder, &record.IsEnabled, &description, &record.CreatedAt, &record.UpdatedAt,
-		&record.Version); err != nil {
+		&ageLevel, &record.SortOrder, &record.IsEnabled, &description, &record.IsBuiltin, &record.Color,
+		&record.CreatedAt, &record.UpdatedAt, &record.Version); err != nil {
 		return nil, err
 	}
 	record.ParentID = mysqlx.NullString(parentID)
@@ -323,11 +325,11 @@ func (r *MySQLDictRepo) ListChildDataItems(ctx context.Context, dictID, parentID
 func (r *MySQLDictRepo) InsertDataItem(ctx context.Context, record domain.DictDataRecord) error {
 	const query = `INSERT INTO t_acat_dict_data
 		(id, dict_id, parent_id, code, name, value, age_level, sort_order, is_enabled, description,
-		 is_deleted, create_by, update_by, created_at, updated_at, version)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, 0)`
+		 is_builtin, color, is_deleted, create_by, update_by, created_at, updated_at, version)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, 0)`
 	_, err := r.db.ExecContext(ctx, query,
 		record.ID, record.DictID, mysqlx.Arg(record.ParentID), record.Code, record.Name, record.Value, record.AgeLevel,
-		record.SortOrder, record.IsEnabled, mysqlx.Arg(record.Description),
+		record.SortOrder, record.IsEnabled, mysqlx.Arg(record.Description), record.IsBuiltin, record.Color,
 		record.CreateBy, record.UpdateBy, record.CreatedAt, record.UpdatedAt)
 	return wrapError("新增数据项失败", err)
 }
@@ -336,12 +338,14 @@ func (r *MySQLDictRepo) InsertDataItem(ctx context.Context, record domain.DictDa
 func (r *MySQLDictRepo) UpdateDataItem(ctx context.Context, record domain.DictDataRecord) (int64, error) {
 	const query = `UPDATE t_acat_dict_data
 		SET dict_id = ?, parent_id = ?, code = ?, name = ?, value = ?, sort_order = ?,
-			is_enabled = ?, age_level = ?, description = ?, created_at = ?, update_by = ?, updated_at = ?,
+			is_enabled = ?, age_level = ?, description = ?, is_builtin = ?, color = ?,
+			created_at = ?, update_by = ?, updated_at = ?,
 		    version = version + 1
 		WHERE id = ? AND version = ? AND is_deleted = 0`
 	result, err := r.db.ExecContext(ctx, query,
 		record.DictID, mysqlx.Arg(record.ParentID), record.Code, record.Name, record.Value,
-		record.SortOrder, record.IsEnabled, record.AgeLevel, mysqlx.Arg(record.Description), record.CreatedAt,
+		record.SortOrder, record.IsEnabled, record.AgeLevel, mysqlx.Arg(record.Description),
+		record.IsBuiltin, record.Color, record.CreatedAt,
 		record.UpdateBy, record.UpdatedAt, record.ID, record.Version)
 	if err != nil {
 		return 0, wrapError("更新数据项失败", err)
@@ -357,12 +361,14 @@ func (r *MySQLDictRepo) UpdateDataItem(ctx context.Context, record domain.DictDa
 func (r *MySQLDictRepo) UpdateDataItemByID(ctx context.Context, record domain.DictDataRecord) (int64, error) {
 	const query = `UPDATE t_acat_dict_data
 		SET dict_id = ?, parent_id = ?, code = ?, name = ?, value = ?, sort_order = ?,
-			is_enabled = ?, age_level = ?, description = ?, created_at = ?, update_by = ?, updated_at = ?,
+			is_enabled = ?, age_level = ?, description = ?, is_builtin = ?, color = ?,
+			created_at = ?, update_by = ?, updated_at = ?,
 		    version = version + 1
 		WHERE id = ? AND is_deleted = 0`
 	result, err := r.db.ExecContext(ctx, query,
 		record.DictID, mysqlx.Arg(record.ParentID), record.Code, record.Name, record.Value,
-		record.SortOrder, record.IsEnabled, record.AgeLevel, mysqlx.Arg(record.Description), record.CreatedAt,
+		record.SortOrder, record.IsEnabled, record.AgeLevel, mysqlx.Arg(record.Description),
+		record.IsBuiltin, record.Color, record.CreatedAt,
 		record.UpdateBy, record.UpdatedAt, record.ID)
 	if err != nil {
 		return 0, wrapError("更新数据项失败", err)
@@ -374,9 +380,10 @@ func (r *MySQLDictRepo) UpdateDataItemByID(ctx context.Context, record domain.Di
 	return affected, nil
 }
 
-// SoftDeleteDataItem 实现 DictRepo（逻辑删除并刷新 updated_at）。
+// SoftDeleteDataItem 实现 DictRepo（逻辑删除并刷新 updated_at；内置行不参与删除，配合服务层判定兜底）。
 func (r *MySQLDictRepo) SoftDeleteDataItem(ctx context.Context, id string) (int64, error) {
-	const query = `UPDATE t_acat_dict_data SET is_deleted = 1, updated_at = ? WHERE id = ? AND is_deleted = 0`
+	const query = `UPDATE t_acat_dict_data SET is_deleted = 1, updated_at = ?
+		WHERE id = ? AND is_deleted = 0 AND is_builtin = 0`
 	result, err := r.db.ExecContext(ctx, query, domain.Now(), id)
 	if err != nil {
 		return 0, wrapError("删除数据项失败", err)

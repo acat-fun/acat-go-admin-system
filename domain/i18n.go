@@ -22,6 +22,7 @@ type I18nTypeEntity struct {
 	Name      string `json:"name"`
 	SortOrder *int   `json:"sortOrder"`
 	IsEnabled *int   `json:"isEnabled"`
+	IsBuiltin *int   `json:"isBuiltin"`
 }
 
 // I18nLabelEntity 是国际化标签实体（标签表读写使用）。

@@ -28,6 +28,7 @@ type AdminDictEntity struct {
 	IsEnabled   *int        `json:"isEnabled"`
 	IsTree      *int        `json:"isTree"`
 	Scope       *int        `json:"scope"`
+	IsBuiltin   *int        `json:"isBuiltin"`
 	Description *string     `json:"description"`
 	I18nValue   []I18nValue `json:"i18nValue"`
 }
@@ -50,6 +51,8 @@ type AdminDictDataEntity struct {
 	AgeLevel    *int        `json:"ageLevel"`
 	SortOrder   *int        `json:"sortOrder"`
 	IsEnabled   *int        `json:"isEnabled"`
+	Color       string      `json:"color"`
+	IsBuiltin   *int        `json:"isBuiltin"`
 	Description *string     `json:"description"`
 	I18nValue   []I18nValue `json:"i18nValue"`
 }
@@ -62,6 +65,7 @@ type DictVO struct {
 	IsEnabled   *int         `json:"isEnabled"`
 	IsTree      *int         `json:"isTree"`
 	Scope       *int         `json:"scope"`
+	IsBuiltin   *int         `json:"isBuiltin"`
 	Description *string      `json:"description"`
 	I18nValue   []I18nValue  `json:"i18nValue"`
 	DataItems   []DictDataVO `json:"dataItems"`
@@ -83,6 +87,8 @@ type DictDataVO struct {
 	AgeLevel    *int         `json:"ageLevel"`
 	SortOrder   *int         `json:"sortOrder"`
 	IsEnabled   *int         `json:"isEnabled"`
+	Color       string       `json:"color"`
+	IsBuiltin   *int         `json:"isBuiltin"`
 	Description *string      `json:"description"`
 	I18nValue   []I18nValue  `json:"i18nValue"`
 	Children    []DictDataVO `json:"children"`
@@ -99,6 +105,7 @@ type DictSavePayload struct {
 	IsEnabled   *int        `json:"isEnabled"`
 	IsTree      *int        `json:"isTree"`
 	Scope       *int        `json:"scope"`
+	IsBuiltin   *int        `json:"isBuiltin"`
 	Description *string     `json:"description"`
 	I18nValue   []I18nValue `json:"i18nValue"`
 }
@@ -118,6 +125,8 @@ type DictDataSavePayload struct {
 	AgeLevel    *int        `json:"ageLevel"`
 	SortOrder   *int        `json:"sortOrder"`
 	IsEnabled   *int        `json:"isEnabled"`
+	Color       *string     `json:"color"`
+	IsBuiltin   *int        `json:"isBuiltin"`
 	Description *string     `json:"description"`
 	I18nValue   []I18nValue `json:"i18nValue"`
 }

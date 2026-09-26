@@ -18,9 +18,11 @@ type DictRecord struct {
 	IsTree      int
 	Scope       int
 	Description *string
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
-	Version     int
+	// IsBuiltin 为 1 表示随版本发布的内置字典（禁止删除）。
+	IsBuiltin int
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	Version   int
 	// CreateBy/UpdateBy 仅写入路径使用。
 	CreateBy *string
 	UpdateBy *string
@@ -38,9 +40,13 @@ type DictDataRecord struct {
 	SortOrder   int
 	IsEnabled   int
 	Description *string
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
-	Version     int
+	// Color 是数据项标签颜色，空串表示不指定。
+	Color string
+	// IsBuiltin 为 1 表示随版本发布的内置数据项（禁止删除）。
+	IsBuiltin int
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	Version   int
 	// CreateBy/UpdateBy 仅写入路径使用。
 	CreateBy *string
 	UpdateBy *string
@@ -75,6 +81,8 @@ type I18nTypeRecord struct {
 	Name      string
 	SortOrder int
 	IsEnabled int
+	// IsBuiltin 为 1 表示随版本发布的内置语言类型（禁止删除）。
+	IsBuiltin int
 	CreatedAt time.Time
 	UpdatedAt time.Time
 	Version   int
@@ -102,9 +110,15 @@ type PageRecord struct {
 	IsEnabled          int
 	FrontendModuleCode *string
 	RouteKey           *string
-	CreatedAt          time.Time
-	UpdatedAt          time.Time
-	Version            int
+	// PermissionCode 是权限判定码，空串表示按 Code 判定。
+	PermissionCode string
+	// IsBuiltin 为 1 表示随版本发布的内置页面（禁止删除）。
+	IsBuiltin int
+	// Description 是页面说明。
+	Description string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	Version     int
 	// IsDeleted 仅读取已软删除行（页面恢复路径）时使用。
 	IsDeleted int
 	// CreateBy/UpdateBy 仅写入变更快照时使用。

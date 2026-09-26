@@ -21,6 +21,7 @@ func NewPageRepo(db DBTX) *MySQLPageRepo { return &MySQLPageRepo{db: db} }
 const pageSelectColumns = `uc.id, uc.code, COALESCE(label.label_value, uc.name) AS name,
 	uc.type, uc.path, uc.icon, uc.parent_id, uc.sort_order,
 	uc.scope, uc.is_enabled, uc.frontend_module_code, uc.route_key,
+	uc.permission_code, uc.is_builtin, uc.description,
 	uc.created_at, uc.updated_at, uc.version`
 
 const pageI18nJoin = `LEFT JOIN t_acat_i18n_label label
@@ -41,6 +42,7 @@ func scanPageRecord(scan func(dest ...any) error) (*domain.PageRecord, error) {
 	)
 	if err := scan(&record.ID, &record.Code, &record.Name, &record.Type, &path, &icon, &parentID,
 		&record.SortOrder, &record.Scope, &record.IsEnabled, &moduleCode, &routeKey,
+		&record.PermissionCode, &record.IsBuiltin, &record.Description,
 		&record.CreatedAt, &record.UpdatedAt, &record.Version); err != nil {
 		return nil, err
 	}
@@ -97,7 +99,8 @@ func (r *MySQLPageRepo) ListPagesByParentID(ctx context.Context, parentID, i18nC
 }
 
 const pagePlainColumns = `id, code, name, type, path, icon, parent_id, sort_order, scope,
-	is_enabled, frontend_module_code, route_key, created_at, updated_at, version`
+	is_enabled, frontend_module_code, route_key, permission_code, is_builtin, description,
+	created_at, updated_at, version`
 
 func (r *MySQLPageRepo) scanPlainPage(ctx context.Context, query string, args ...any) (*domain.PageRecord, error) {
 	var (
@@ -111,6 +114,7 @@ func (r *MySQLPageRepo) scanPlainPage(ctx context.Context, query string, args ..
 	err := r.db.QueryRowContext(ctx, query, args...).Scan(
 		&record.ID, &record.Code, &record.Name, &record.Type, &path, &icon, &parentID,
 		&record.SortOrder, &record.Scope, &record.IsEnabled, &moduleCode, &routeKey,
+		&record.PermissionCode, &record.IsBuiltin, &record.Description,
 		&record.CreatedAt, &record.UpdatedAt, &record.Version)
 	if err != nil {
 		return nil, wrapError("查询页面失败", err)
@@ -151,12 +155,14 @@ func (r *MySQLPageRepo) RestoreDeletedPage(ctx context.Context, record domain.Pa
 	const query = `UPDATE t_acat_page
 		SET is_deleted = 0, code = ?, name = ?, type = ?, path = ?, icon = ?, parent_id = ?,
 		    sort_order = ?, scope = ?, is_enabled = ?, frontend_module_code = ?, route_key = ?,
+		    permission_code = ?, is_builtin = ?, description = ?,
 		    updated_at = ?
 		WHERE id = ? AND is_deleted = 1`
 	result, err := r.db.ExecContext(ctx, query,
 		record.Code, record.Name, record.Type, mysqlx.Arg(record.Path), mysqlx.Arg(record.Icon),
 		mysqlx.Arg(record.ParentID), record.SortOrder, record.Scope, record.IsEnabled,
-		mysqlx.Arg(record.FrontendModuleCode), mysqlx.Arg(record.RouteKey), domain.Now(), record.ID)
+		mysqlx.Arg(record.FrontendModuleCode), mysqlx.Arg(record.RouteKey),
+		record.PermissionCode, record.IsBuiltin, record.Description, domain.Now(), record.ID)
 	if err != nil {
 		return 0, wrapError("恢复页面失败", err)
 	}
@@ -171,12 +177,14 @@ func (r *MySQLPageRepo) RestoreDeletedPage(ctx context.Context, record domain.Pa
 func (r *MySQLPageRepo) InsertPage(ctx context.Context, record domain.PageRecord) error {
 	const query = `INSERT INTO t_acat_page
 		(id, code, name, type, path, icon, parent_id, sort_order, scope, is_enabled,
-		 frontend_module_code, route_key, is_deleted, create_by, update_by, created_at, updated_at, version)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, 0)`
+		 frontend_module_code, route_key, permission_code, is_builtin, description,
+		 is_deleted, create_by, update_by, created_at, updated_at, version)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, 0)`
 	_, err := r.db.ExecContext(ctx, query,
 		record.ID, record.Code, record.Name, record.Type, mysqlx.Arg(record.Path), mysqlx.Arg(record.Icon),
 		mysqlx.Arg(record.ParentID), record.SortOrder, record.Scope, record.IsEnabled,
 		mysqlx.Arg(record.FrontendModuleCode), mysqlx.Arg(record.RouteKey),
+		record.PermissionCode, record.IsBuiltin, record.Description,
 		record.CreateBy, record.UpdateBy, record.CreatedAt, record.UpdatedAt)
 	return wrapError("新增页面失败", err)
 }
@@ -186,12 +194,14 @@ func (r *MySQLPageRepo) UpdatePage(ctx context.Context, record domain.PageRecord
 	const query = `UPDATE t_acat_page
 		SET code = ?, name = ?, type = ?, path = ?, icon = ?, parent_id = ?, sort_order = ?,
 		    scope = ?, is_enabled = ?, frontend_module_code = ?, route_key = ?,
+		    permission_code = ?, is_builtin = ?, description = ?,
 		    created_at = ?, update_by = ?, updated_at = ?, version = version + 1
 		WHERE id = ? AND version = ? AND is_deleted = 0`
 	result, err := r.db.ExecContext(ctx, query,
 		record.Code, record.Name, record.Type, mysqlx.Arg(record.Path), mysqlx.Arg(record.Icon),
 		mysqlx.Arg(record.ParentID), record.SortOrder, record.Scope, record.IsEnabled,
 		mysqlx.Arg(record.FrontendModuleCode), mysqlx.Arg(record.RouteKey),
+		record.PermissionCode, record.IsBuiltin, record.Description,
 		record.CreatedAt, record.UpdateBy, record.UpdatedAt, record.ID, record.Version)
 	if err != nil {
 		return 0, wrapError("更新页面失败", err)
@@ -203,9 +213,10 @@ func (r *MySQLPageRepo) UpdatePage(ctx context.Context, record domain.PageRecord
 	return affected, nil
 }
 
-// SoftDeletePage 实现 PageRepo（逻辑删除）。
+// SoftDeletePage 实现 PageRepo（逻辑删除；内置行不参与删除，配合服务层判定兜底）。
 func (r *MySQLPageRepo) SoftDeletePage(ctx context.Context, id string) (int64, error) {
-	const query = `UPDATE t_acat_page SET is_deleted = 1, updated_at = ? WHERE id = ? AND is_deleted = 0`
+	const query = `UPDATE t_acat_page SET is_deleted = 1, updated_at = ?
+		WHERE id = ? AND is_deleted = 0 AND is_builtin = 0`
 	result, err := r.db.ExecContext(ctx, query, domain.Now(), id)
 	if err != nil {
 		return 0, wrapError("删除页面失败", err)

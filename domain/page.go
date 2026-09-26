@@ -37,8 +37,11 @@ type AdminPageEntity struct {
 	SortOrder          *int        `json:"sortOrder"`
 	Scope              *int        `json:"scope"`
 	IsEnabled          *int        `json:"isEnabled"`
+	IsBuiltin          *int        `json:"isBuiltin"`
 	FrontendModuleCode *string     `json:"frontendModuleCode"`
 	RouteKey           *string     `json:"routeKey"`
+	PermissionCode     string      `json:"permissionCode"`
+	Description        string      `json:"description"`
 	I18nValue          []I18nValue `json:"i18nValue"`
 }
 
@@ -54,8 +57,11 @@ type PageSavePayload struct {
 	ParentID           *string     `json:"parentId"`
 	SortOrder          *int        `json:"sortOrder"`
 	IsEnabled          *int        `json:"isEnabled"`
+	IsBuiltin          *int        `json:"isBuiltin"`
 	FrontendModuleCode *string     `json:"frontendModuleCode"`
 	RouteKey           *string     `json:"routeKey"`
+	PermissionCode     *string     `json:"permissionCode"`
+	Description        *string     `json:"description"`
 	I18nValue          []I18nValue `json:"i18nValue"`
 }
 
@@ -71,8 +77,11 @@ type PageVO struct {
 	SortOrder          *int        `json:"sortOrder"`
 	Scope              *int        `json:"scope"`
 	IsEnabled          *int        `json:"isEnabled"`
+	IsBuiltin          *int        `json:"isBuiltin"`
 	FrontendModuleCode *string     `json:"frontendModuleCode"`
 	RouteKey           *string     `json:"routeKey"`
+	PermissionCode     string      `json:"permissionCode"`
+	Description        string      `json:"description"`
 	I18nValue          []I18nValue `json:"i18nValue"`
 	Children           []PageVO    `json:"children"`
 	CreatedAt          *string     `json:"createdAt"`
