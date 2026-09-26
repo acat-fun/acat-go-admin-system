@@ -60,6 +60,8 @@ type API struct {
 	cfg     config.SaTokenConfig
 	logger  *slog.Logger
 	ready   func() error
+	// disableFallback 见 Options.DisableAdminFallback。
+	disableFallback bool
 	// audit 是审计日志写入器，逐路由插在认证之后。
 	audit *audit.Recorder
 	// routes 记录已注册的路由模式（供审计 detail 覆盖测试使用）。
@@ -72,6 +74,10 @@ type Options struct {
 	Satoken *satoken.Logic
 	Config  config.SaTokenConfig
 	Logger  *slog.Logger
+	// DisableAdminFallback 关闭 /api/admin/** 兜底模式。
+	// 与共享 auth 域（acat-go-admin-system/auth/httpapi）同时挂载时必须有一侧关闭：
+	// 两个 API 都会注册 "/api/admin/"，Go ServeMux 对重复模式直接 panic。
+	DisableAdminFallback bool
 	// Audit 覆盖审计写入器；nil 时使用 Service 注入的审计存储（生产装配路径）。
 	Audit *audit.Recorder
 	// ReadyCheck 是就绪探针额外依赖检查（数据库等），可为 nil。
@@ -92,13 +98,14 @@ func New(opts Options) (*API, error) {
 		recorder = audit.New(audit.Options{Store: opts.Service.AuditStore(), Logger: logger})
 	}
 	return &API{
-		svc:     opts.Service,
-		satoken: opts.Satoken,
-		checker: logic.NewChecker(opts.Satoken),
-		cfg:     opts.Config,
-		logger:  logger,
-		ready:   opts.ReadyCheck,
-		audit:   recorder,
+		disableFallback: opts.DisableAdminFallback,
+		svc:             opts.Service,
+		satoken:         opts.Satoken,
+		checker:         logic.NewChecker(opts.Satoken),
+		cfg:             opts.Config,
+		logger:          logger,
+		ready:           opts.ReadyCheck,
+		audit:           recorder,
 	}, nil
 }
 
@@ -125,7 +132,9 @@ func (a *API) Register(mux *http.ServeMux) {
 	// 但 /api/admin/system/i18n/public/** 整段免登录。
 	// Go 1.22+ ServeMux 更具体的模式优先，因此这两个模式只兜住未注册路径。
 	mux.Handle(PathI18nPublicPrefix, http.HandlerFunc(a.handleAdminNotFound))
-	mux.Handle(PathAdminPrefix, auth(http.HandlerFunc(a.handleAdminNotFound)))
+	if !a.disableFallback {
+		mux.Handle(PathAdminPrefix, auth(http.HandlerFunc(a.handleAdminNotFound)))
+	}
 }
 
 // passthroughAuth 是公开路由的占位认证中间件（不做鉴权，仅统一路由注册形态）。

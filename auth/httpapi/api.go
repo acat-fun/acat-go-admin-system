@@ -56,6 +56,8 @@ type API struct {
 	cfg     config.SaTokenConfig
 	logger  *slog.Logger
 	ready   func() error
+	// disableFallback 见 Options.DisableAdminFallback。
+	disableFallback bool
 }
 
 // Options 配置 API。
@@ -64,6 +66,10 @@ type Options struct {
 	Satoken *satoken.Logic
 	Config  config.SaTokenConfig
 	Logger  *slog.Logger
+	// DisableAdminFallback 关闭 /api/admin/** 兜底模式。
+	// 与共享 system 域（acat-go-admin-system/httpapi）同时挂载时必须有一侧关闭：
+	// 两个 API 都会注册 "/api/admin/"，Go ServeMux 对重复模式直接 panic。
+	DisableAdminFallback bool
 	// ReadyCheck 是就绪探针额外依赖检查（数据库等），可为 nil。
 	ReadyCheck func() error
 }
@@ -78,12 +84,13 @@ func New(opts Options) (*API, error) {
 		logger = slog.Default()
 	}
 	return &API{
-		svc:     opts.Service,
-		satoken: opts.Satoken,
-		checker: logic.NewChecker(opts.Satoken),
-		cfg:     opts.Config,
-		logger:  logger,
-		ready:   opts.ReadyCheck,
+		disableFallback: opts.DisableAdminFallback,
+		svc:             opts.Service,
+		satoken:         opts.Satoken,
+		checker:         logic.NewChecker(opts.Satoken),
+		cfg:             opts.Config,
+		logger:          logger,
+		ready:           opts.ReadyCheck,
 	}, nil
 }
 
@@ -112,7 +119,9 @@ func (a *API) Register(mux *http.ServeMux) {
 	// 兜底：整个 /api/admin/** 必须先登录。
 	// Go 1.22+ ServeMux 更具体的模式优先，因此该模式只兜住未注册路径：
 	// 未登录 → auth 中间件 401；已登录 → handleAdminNotFound 404。
-	mux.Handle(PathAdminPrefix, auth(http.HandlerFunc(a.handleAdminNotFound)))
+	if !a.disableFallback {
+		mux.Handle(PathAdminPrefix, auth(http.HandlerFunc(a.handleAdminNotFound)))
+	}
 }
 
 // handleAdminNotFound 处理已登录但未注册的 /api/admin/** 路径；
