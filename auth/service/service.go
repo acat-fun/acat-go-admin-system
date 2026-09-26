@@ -129,7 +129,7 @@ type Options struct {
 
 // New 构造 Service。
 func New(opts Options) (*Service, error) {
-	if opts.Workers == nil || opts.Pages == nil || opts.Modules == nil || opts.Satoken == nil {
+	if opts.Pages == nil || opts.Modules == nil || opts.Satoken == nil {
 		return nil, fmt.Errorf("service: 依赖未完整注入")
 	}
 	if opts.Tx == nil {
@@ -188,6 +188,9 @@ func (s *Service) Login(ctx context.Context, username, password string) (*LoginR
 	if username == "" || password == "" {
 		return nil, apperr.NewBusiness(MessageInvalidCredential)
 	}
+	if s.workers == nil {
+		return nil, fmt.Errorf("service: 工作人员数据访问未注入")
+	}
 	worker, err := s.workers.FindByUsername(ctx, username)
 	if err != nil {
 		if errors.Is(err, repo.ErrNotFound) {
@@ -215,6 +218,9 @@ func (s *Service) Login(ctx context.Context, username, password string) (*LoginR
 
 // Bootstrap 返回指定登录 id 的启动数据（bootstrap / user-info 共用）。
 func (s *Service) Bootstrap(ctx context.Context, loginID string) (domain.Bootstrap, error) {
+	if s.workers == nil {
+		return domain.NewEmptyBootstrap(), fmt.Errorf("service: 工作人员数据访问未注入")
+	}
 	worker, err := s.workers.FindByID(ctx, loginID)
 	if err != nil {
 		if errors.Is(err, repo.ErrNotFound) {
@@ -237,6 +243,9 @@ func (s *Service) Permissions(ctx context.Context, loginID string) ([]string, er
 		return []string{}, nil
 	}
 	if domain.IsRootRole(session.StringList(satoken.DataKeyRoles)) {
+		if s.workers == nil {
+			return []string{}, fmt.Errorf("service: 工作人员数据访问未注入")
+		}
 		codes, err := s.workers.AllPermissionCodes(ctx)
 		if err != nil {
 			return nil, err
@@ -254,6 +263,9 @@ func (s *Service) Logout(ctx context.Context, token string) error {
 // buildBootstrap 装配登录后的启动数据（会话、页面树与前端模块清单）。
 func (s *Service) buildBootstrap(ctx context.Context, worker *domain.Worker) (domain.Bootstrap, error) {
 	// 超管判定统一按角色：roles 含 root 即超管（全量权限/全量页面），不再按登录 id 特判。
+	if s.workers == nil {
+		return domain.NewEmptyBootstrap(), fmt.Errorf("service: 工作人员数据访问未注入")
+	}
 	roles, err := s.workers.RoleCodes(ctx, worker.ID)
 	if err != nil {
 		return domain.NewEmptyBootstrap(), err
@@ -326,7 +338,13 @@ func (s *Service) buildBootstrap(ctx context.Context, worker *domain.Worker) (do
 
 func (s *Service) permissions(ctx context.Context, root bool, userID string) ([]string, error) {
 	if root {
+		if s.workers == nil {
+			return []string{}, fmt.Errorf("service: 工作人员数据访问未注入")
+		}
 		return s.workers.AllPermissionCodes(ctx)
+	}
+	if s.workers == nil {
+		return []string{}, fmt.Errorf("service: 工作人员数据访问未注入")
 	}
 	codes, err := s.workers.URLAndButtonCodes(ctx, userID)
 	if err != nil {
@@ -337,7 +355,13 @@ func (s *Service) permissions(ctx context.Context, root bool, userID string) ([]
 
 func (s *Service) urlCodes(ctx context.Context, root bool, userID string) ([]string, error) {
 	if root {
+		if s.workers == nil {
+			return []string{}, fmt.Errorf("service: 工作人员数据访问未注入")
+		}
 		return s.workers.AllURLCodes(ctx)
+	}
+	if s.workers == nil {
+		return []string{}, fmt.Errorf("service: 工作人员数据访问未注入")
 	}
 	return s.workers.URLCodes(ctx, userID)
 }
