@@ -6,7 +6,7 @@ import (
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 
-	"47.108.230.93/acat-fun/acat-go-admin-system/domain"
+	"github.com/acat-fun/acat-go-admin-system/domain"
 )
 
 // javaLoginDocument 是既有写入形态的 golden 文档。

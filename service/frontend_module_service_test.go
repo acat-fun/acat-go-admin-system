@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"47.108.230.93/acat-fun/acat-go-admin-system/domain"
+	"github.com/acat-fun/acat-go-admin-system/domain"
 )
 
 // TestListFrontendModulesEmitsNullFallbackManifestPath 锁定可空字段的回退行为：

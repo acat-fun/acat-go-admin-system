@@ -8,7 +8,7 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
-	"47.108.230.93/acat-fun/acat-go-admin-system/auth/domain"
+	"github.com/acat-fun/acat-go-admin-system/auth/domain"
 )
 
 // seedWorker 写入一个带 bcrypt 密码的工作人员。

@@ -6,7 +6,7 @@ import (
 	"github.com/acat-fun/acat-go-common/mysqlx"
 	"strings"
 
-	"47.108.230.93/acat-fun/acat-go-admin-system/domain"
+	"github.com/acat-fun/acat-go-admin-system/domain"
 )
 
 // MySQLFrontendModuleRepo 是 FrontendModuleRepo 的 MySQL 实现。

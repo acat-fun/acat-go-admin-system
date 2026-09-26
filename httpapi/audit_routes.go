@@ -3,7 +3,7 @@ package httpapi
 import (
 	"net/http"
 
-	"47.108.230.93/acat-fun/acat-go-admin-system/audit"
+	"github.com/acat-fun/acat-go-admin-system/audit"
 )
 
 // auditRouteDetails 是 Go 路由 → Controller.methodName 的唯一映射表。

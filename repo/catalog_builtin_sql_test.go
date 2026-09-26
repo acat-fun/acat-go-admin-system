@@ -8,7 +8,7 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 
-	"47.108.230.93/acat-fun/acat-go-admin-system/domain"
+	"github.com/acat-fun/acat-go-admin-system/domain"
 )
 
 // 本文件覆盖页面/字典/语言类型的内置标记与字典项颜色在 SQL 层的一致性：

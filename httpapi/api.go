@@ -17,9 +17,9 @@ import (
 	"net/http"
 	"strings"
 
-	"47.108.230.93/acat-fun/acat-go-admin-system/audit"
-	"47.108.230.93/acat-fun/acat-go-admin-system/logic"
-	"47.108.230.93/acat-fun/acat-go-admin-system/service"
+	"github.com/acat-fun/acat-go-admin-system/audit"
+	"github.com/acat-fun/acat-go-admin-system/logic"
+	"github.com/acat-fun/acat-go-admin-system/service"
 	"github.com/acat-fun/acat-go-common/apperr"
 	"github.com/acat-fun/acat-go-common/config"
 	"github.com/acat-fun/acat-go-common/health"

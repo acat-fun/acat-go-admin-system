@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"47.108.230.93/acat-fun/acat-go-admin-system/domain"
+	"github.com/acat-fun/acat-go-admin-system/domain"
 	"github.com/acat-fun/acat-go-common/apperr"
 	"github.com/acat-fun/acat-go-common/middleware"
 	"github.com/acat-fun/acat-go-common/satoken"

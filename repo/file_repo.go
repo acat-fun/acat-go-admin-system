@@ -3,7 +3,7 @@ package repo
 import (
 	"context"
 
-	"47.108.230.93/acat-fun/acat-go-admin-system/domain"
+	"github.com/acat-fun/acat-go-admin-system/domain"
 )
 
 // MySQLFileRepo 是 FileRepo 的 MySQL 实现。

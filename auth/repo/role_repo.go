@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strings"
 
-	"47.108.230.93/acat-fun/acat-go-admin-system/auth/domain"
+	"github.com/acat-fun/acat-go-admin-system/auth/domain"
 )
 
 // RoleRepo 提供角色（t_acat_role）与角色权限关联（t_acat_role_permission）数据访问。

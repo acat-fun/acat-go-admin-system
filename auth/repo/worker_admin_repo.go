@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strings"
 
-	"47.108.230.93/acat-fun/acat-go-admin-system/auth/domain"
+	"github.com/acat-fun/acat-go-admin-system/auth/domain"
 )
 
 // AdminWorkerRepo 提供工作人员（t_acat_user_worker）管理数据访问。

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"47.108.230.93/acat-fun/acat-go-admin-system/domain"
+	"github.com/acat-fun/acat-go-admin-system/domain"
 )
 
 // MySQLPageRepo 是 PageRepo 的 MySQL 实现。
