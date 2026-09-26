@@ -46,6 +46,20 @@ api, err := adminapi.New(adminapi.Options{Service: svc, Satoken: logic, ...})
 api.Register(mux)
 ```
 
+文件对象存储：缺省用内存实现（本机联调）；宿主平台接入自身对象存储时注入 `Objects`，
+并用 `FileKeyPrefix` 指定对象键根前缀（缺省 `acat-fun/read`，各文件类型在其下分目录）：
+
+```go
+svc, err := adminsvc.New(adminsvc.Options{
+    // ...其余依赖
+    Objects: adminstorage.NewS3(adminstorage.S3Options{
+        Endpoint: "http://minio:9000", AccessKey: ak, SecretKey: sk,
+        Bucket: "acat-devops", Region: "us-east-1",
+    }),
+    FileKeyPrefix: "platform", // 对象键形如 platform/file/<uuid>、platform/user/avatar/<uuid>
+})
+```
+
 通知域（各端挂自己的路由前缀）：
 
 ```go

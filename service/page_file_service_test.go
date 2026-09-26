@@ -378,6 +378,43 @@ func TestUploadAndReadFile(t *testing.T) {
 	}
 }
 
+func TestUploadFileUsesConfiguredKeyPrefix(t *testing.T) {
+	cases := []struct {
+		name   string
+		prefix string
+		want   string
+	}{
+		{name: "自定义前缀", prefix: "platform", want: "acat-local/platform/book/cover/"},
+		{name: "前缀首尾斜杠与空白归一化", prefix: " /platform/ ", want: "acat-local/platform/book/cover/"},
+		{name: "留空取默认前缀", prefix: "", want: "acat-local/acat-fun/read/book/cover/"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			env := newTestEnvWith(t, func(options *Options) { options.FileKeyPrefix = tc.prefix })
+			vo, err := env.svc.UploadFile(env.ctx, rootRC(), "book_cover", "封面.PNG", "image/png", []byte("binary"))
+			if err != nil {
+				t.Fatalf("上传失败: %v", err)
+			}
+			if len(vo.Path) < len(tc.want) || vo.Path[:len(tc.want)] != tc.want {
+				t.Fatalf("对象路径前缀异常: %q，期望前缀 %q", vo.Path, tc.want)
+			}
+			// 记录路径必须与对象存储里的键一致，否则下载阶段解析不到对象。
+			keys := env.objects.Keys()
+			if len(keys) != 1 || keys[0] != vo.Path {
+				t.Fatalf("对象键与记录路径不一致: %v / %q", keys, vo.Path)
+			}
+			file, err := env.svc.GetFile(env.ctx, vo.ID)
+			if err != nil {
+				t.Fatalf("查询失败: %v", err)
+			}
+			body, err := env.svc.OpenObject(env.ctx, *file)
+			if err != nil || string(body) != "binary" {
+				t.Fatalf("读取对象失败: %q %v", body, err)
+			}
+		})
+	}
+}
+
 func TestUploadFileRejectsIllegalFileType(t *testing.T) {
 	env := newTestEnv(t)
 	_, err := env.svc.UploadFile(env.ctx, rootRC(), "illegal", "a.txt", "text/plain", []byte("x"))

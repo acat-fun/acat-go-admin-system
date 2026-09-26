@@ -64,7 +64,7 @@ func (s *Service) UploadFile(ctx context.Context, rc RequestContext, fileType, o
 	if err != nil {
 		return nil, err
 	}
-	objectKey := generateObjectKey(validated, originalName)
+	objectKey := s.generateObjectKey(validated, originalName)
 	if contentType == "" {
 		contentType = "application/octet-stream"
 	}
@@ -141,27 +141,44 @@ func (s *Service) OpenObject(ctx context.Context, file domain.File) ([]byte, err
 	return object.Body, nil
 }
 
-// generateObjectKey。
-// 固定前缀 + UUID v4 + 可选的安全扩展名（[a-z0-9]{1,10}）。
-func generateObjectKey(fileType, originalName string) string {
-	prefix := "acat-fun/read/file"
+// DefaultFileKeyPrefix 是文件对象键的默认根前缀；各文件类型在其下分目录。
+const DefaultFileKeyPrefix = "acat-fun/read"
+
+// normalizeFileKeyPrefix 归一化对象键根前缀：去空白与首尾斜杠，留空取默认值。
+func normalizeFileKeyPrefix(prefix string) string {
+	value := strings.Trim(strings.TrimSpace(prefix), "/")
+	if value == "" {
+		return DefaultFileKeyPrefix
+	}
+	return value
+}
+
+// fileTypeDirectory 返回文件类型对应的对象键目录。
+func fileTypeDirectory(fileType string) string {
 	switch fileType {
 	case domain.FileTypeBookCover:
-		prefix = "acat-fun/read/book/cover"
+		return "book/cover"
 	case domain.FileTypeComicCover:
-		prefix = "acat-fun/read/comic/cover"
+		return "comic/cover"
 	case domain.FileTypeComicPage:
-		prefix = "acat-fun/read/comic/chapter"
+		return "comic/chapter"
 	case domain.FileTypeAvatar:
-		prefix = "acat-fun/read/user/avatar"
+		return "user/avatar"
 	case domain.FileTypeAuthorSample:
-		prefix = "acat-fun/read/author/sample"
+		return "author/sample"
+	default:
+		return "file"
 	}
+}
+
+// generateObjectKey 生成对象键：<根前缀>/<类型目录>/<UUID v4>[.<安全扩展名>]。
+func (s *Service) generateObjectKey(fileType, originalName string) string {
+	key := s.fileKeyPrefix + "/" + fileTypeDirectory(fileType) + "/" + newUUIDv4()
 	extension := safeExtension(originalName)
 	if extension == "" {
-		return prefix + "/" + newUUIDv4()
+		return key
 	}
-	return prefix + "/" + newUUIDv4() + "." + extension
+	return key + "." + extension
 }
 
 // safeExtension。

@@ -44,6 +44,12 @@ var fixedNow = time.Date(2026, 9, 14, 1, 2, 3, 0, time.Local)
 
 func newTestEnv(t *testing.T) *testEnv {
 	t.Helper()
+	return newTestEnvWith(t, nil)
+}
+
+// newTestEnvWith 在默认测试装配上追加选项覆盖（用于验证可配置项）。
+func newTestEnvWith(t *testing.T, mutate func(*Options)) *testEnv {
+	t.Helper()
 	dicts := newFakeDictRepo()
 	pages := newFakePageRepo()
 	modules := newFakeModuleRepo()
@@ -64,7 +70,7 @@ func newTestEnv(t *testing.T) *testEnv {
 		"019f0000-0000-7000-8000-000000000004",
 	}
 	index := 0
-	svc, err := New(Options{
+	options := Options{
 		Dicts:     dicts,
 		Labels:    dicts,
 		Pages:     pages,
@@ -85,7 +91,11 @@ func newTestEnv(t *testing.T) *testEnv {
 			return domain.NewID()
 		},
 		Now: fixedClock(fixedNow),
-	})
+	}
+	if mutate != nil {
+		mutate(&options)
+	}
+	svc, err := New(options)
 	if err != nil {
 		t.Fatalf("构造 Service 失败: %v", err)
 	}

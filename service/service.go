@@ -189,6 +189,8 @@ type Service struct {
 	audits    repo.AuditLogStore
 	objects   storage.ObjectStorage
 	i18nCode  string
+	// fileKeyPrefix 文件对象键的根前缀，各文件类型在其下分目录。
+	fileKeyPrefix string
 	// newID 生成主键（UUID v7），默认 domain.NewID；测试可注入固定序列。
 	newID func() string
 	// now 返回当前时间（秒截断），默认 domain.Now；测试可注入固定时间。
@@ -213,6 +215,9 @@ type Options struct {
 	Objects storage.ObjectStorage
 	// I18nCode 覆盖默认语言。
 	I18nCode string
+	// FileKeyPrefix 是文件对象键的根前缀，默认 DefaultFileKeyPrefix；
+	// 宿主平台可指向自身的对象存储命名空间（如平台内置 MinIO 的 platform）。
+	FileKeyPrefix string
 	// NewID 主键生成器，默认 domain.NewID。
 	NewID func() string
 	// Now 时间源，默认 domain.Now。
@@ -246,6 +251,7 @@ func New(opts Options) (*Service, error) {
 	if i18nCode == "" {
 		i18nCode = DefaultI18nCode
 	}
+	fileKeyPrefix := normalizeFileKeyPrefix(opts.FileKeyPrefix)
 	newID := opts.NewID
 	if newID == nil {
 		newID = domain.NewID
@@ -255,19 +261,20 @@ func New(opts Options) (*Service, error) {
 		now = domain.Now
 	}
 	return &Service{
-		dicts:     opts.Dicts,
-		labels:    opts.Labels,
-		pages:     opts.Pages,
-		modules:   opts.Modules,
-		i18nTypes: opts.I18nTypes,
-		files:     opts.Files,
-		tx:        opts.Tx,
-		logger:    logger,
-		audits:    audits,
-		objects:   objects,
-		i18nCode:  i18nCode,
-		newID:     newID,
-		now:       now,
+		dicts:         opts.Dicts,
+		labels:        opts.Labels,
+		pages:         opts.Pages,
+		modules:       opts.Modules,
+		i18nTypes:     opts.I18nTypes,
+		files:         opts.Files,
+		tx:            opts.Tx,
+		logger:        logger,
+		audits:        audits,
+		objects:       objects,
+		i18nCode:      i18nCode,
+		fileKeyPrefix: fileKeyPrefix,
+		newID:         newID,
+		now:           now,
 	}, nil
 }
 
