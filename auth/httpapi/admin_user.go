@@ -10,8 +10,8 @@ import (
 	"github.com/acat-fun/acat-go-common/result"
 )
 
-// registerReaderRoutes 注册读者用户管理路由。
-func (a *API) registerReaderRoutes(mux *http.ServeMux, auth func(http.Handler) http.Handler) {
+// registerUserRoutes 注册用户管理路由。
+func (a *API) registerUserRoutes(mux *http.ServeMux, auth func(http.Handler) http.Handler) {
 	mux.Handle("GET "+PathReaders, auth(http.HandlerFunc(a.handleListReaders)))
 	mux.Handle("POST "+PathReaders, auth(http.HandlerFunc(a.handleCreateReader)))
 	mux.Handle("PUT "+PathReaders+subByID, auth(http.HandlerFunc(a.handleUpdateReader)))

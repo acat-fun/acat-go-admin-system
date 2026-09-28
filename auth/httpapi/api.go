@@ -6,7 +6,7 @@
 //   - 未登录 401、无权限 403（由中间件/处理器显式构造）；
 //   - 仅 /api/admin/user/auth/login 放行，其余 /api/admin/** 必须登录（含未注册路径：
 //     未登录 401，已登录才 404
-//   - 管理接口（readers/workers/roles/permissions）登录后再做权限码判定（logic.Checker）。
+//   - 管理接口（users/workers/roles/permissions）登录后再做权限码判定（logic.Checker）。
 package httpapi
 
 import (
@@ -110,8 +110,8 @@ func (a *API) Register(mux *http.ServeMux) {
 	mux.Handle("POST "+PathAuthChangePassword, auth(http.HandlerFunc(a.handleChangePassword)))
 	mux.Handle("GET "+PathMyPermissions, auth(http.HandlerFunc(a.handleMyPermissions)))
 
-	// 管理接口（readers/workers/roles/permissions）：登录 + 处理器内权限判定。
-	a.registerReaderRoutes(mux, auth)
+	// 管理接口（users/workers/roles/permissions）：登录 + 处理器内权限判定。
+	a.registerUserRoutes(mux, auth)
 	a.registerWorkerRoutes(mux, auth)
 	a.registerRoleRoutes(mux, auth)
 	a.registerPermissionRoutes(mux, auth)

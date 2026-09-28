@@ -14,8 +14,8 @@ import (
 
 // 管理接口路由常量（基路径）与子路径后缀。
 const (
-	// PathReaders 读者用户管理。
-	PathReaders = "/api/admin/user/readers"
+	// PathReaders 用户管理。
+	PathReaders = "/api/admin/user/users"
 	// PathWorkers 工作人员管理。
 	PathWorkers = "/api/admin/user/workers"
 	// PathRoles 角色管理。

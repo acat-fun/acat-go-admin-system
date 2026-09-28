@@ -20,12 +20,12 @@ const (
 	SystemUsersWorkersDelete          = "acat:admin:system:users:workers:delete"
 	SystemUsersWorkersToggle          = "acat:admin:system:users:workers:toggle"
 	SystemUsersWorkersAssignRole      = "acat:admin:system:users:workers:assign-role"
-	SystemUsersReaders                = "acat:read:admin:system:users:readers"
-	SystemUsersReadersAdd             = "acat:read:admin:system:users:readers:add"
-	SystemUsersReadersEdit            = "acat:read:admin:system:users:readers:edit"
-	SystemUsersReadersDelete          = "acat:read:admin:system:users:readers:delete"
-	SystemUsersReadersToggle          = "acat:read:admin:system:users:readers:toggle"
-	SystemUsersReadersAssignRole      = "acat:read:admin:system:users:readers:assign-role"
+	SystemUsersReaders                = "acat:admin:system:users:users"
+	SystemUsersReadersAdd             = "acat:admin:system:users:users:add"
+	SystemUsersReadersEdit            = "acat:admin:system:users:users:edit"
+	SystemUsersReadersDelete          = "acat:admin:system:users:users:delete"
+	SystemUsersReadersToggle          = "acat:admin:system:users:users:toggle"
+	SystemUsersReadersAssignRole      = "acat:admin:system:users:users:assign-role"
 	// RoleCodeAdmin admin 角色编码。
 	RoleCodeAdmin = "admin"
 )
