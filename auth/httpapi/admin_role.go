@@ -53,7 +53,8 @@ func (a *API) handleListRoles(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	pageIndex, pageSize := queryPage(req)
-	data, err := a.svc.ListRolesPage(req.Context(), pageIndex, pageSize)
+	data, err := a.svc.ListRolesPage(req.Context(), pageIndex, pageSize,
+		req.URL.Query().Get("name"), queryIntPtr(req, "status"))
 	if err != nil {
 		writeServiceError(req, w, err)
 		return

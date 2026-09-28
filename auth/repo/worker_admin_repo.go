@@ -15,8 +15,9 @@ import (
 // 与认证用的 WorkerRepo 分开：管理接口需要 email/avatar 的可空语义与 created_at/updated_at，
 // 而认证链路只用 id/username/password/email/avatar/status。
 type AdminWorkerRepo interface {
-	// List 分页查询：keyword 对 username/email 做 LIKE，ORDER BY id ASC。
-	List(ctx context.Context, keyword string, offset, limit int) ([]domain.AdminWorker, int64, error)
+	// List 分页查询：keyword 对 username/email 做 LIKE；status 非空时等值过滤；
+	// roleID 非空时限定已关联该角色且未删除的工作人员；ORDER BY id ASC。
+	List(ctx context.Context, keyword string, status *int, roleID string, offset, limit int) ([]domain.AdminWorker, int64, error)
 	// FindByUsername 按用户名查询未删除工作人员。
 	FindByUsername(ctx context.Context, username string) (*domain.AdminWorker, error)
 	// FindByID 按主键查询未删除工作人员。
@@ -46,13 +47,21 @@ func NewAdminWorkerRepo(db DBTX) *MySQLAdminWorkerRepo { return &MySQLAdminWorke
 const adminWorkerColumns = "id, username, password, email, avatar, status, created_at, updated_at"
 
 // List 实现 AdminWorkerRepo。
-func (r *MySQLAdminWorkerRepo) List(ctx context.Context, keyword string, offset, limit int) ([]domain.AdminWorker, int64, error) {
+func (r *MySQLAdminWorkerRepo) List(ctx context.Context, keyword string, status *int, roleID string, offset, limit int) ([]domain.AdminWorker, int64, error) {
 	where := " WHERE is_deleted = 0"
-	args := make([]any, 0, 4)
+	args := make([]any, 0, 6)
 	if keyword != "" {
 		where += " AND (username LIKE ? OR email LIKE ?)"
 		pattern := "%" + keyword + "%"
 		args = append(args, pattern, pattern)
+	}
+	if status != nil {
+		where += " AND status = ?"
+		args = append(args, *status)
+	}
+	if trimmed := strings.TrimSpace(roleID); trimmed != "" {
+		where += " AND id IN (SELECT user_id FROM t_acat_user_role WHERE role_id = ? AND is_deleted = 0)"
+		args = append(args, trimmed)
 	}
 
 	var total int64

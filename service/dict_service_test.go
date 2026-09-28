@@ -212,7 +212,7 @@ func TestCreateDataItemRejectsForeignParent(t *testing.T) {
 
 func TestListDataItemsMissingDictReturnsEmptyPage(t *testing.T) {
 	env := newTestEnv(t)
-	page, err := env.svc.ListDataItems(env.ctx, rootRC(), "nope", 1, 10, "")
+	page, err := env.svc.ListDataItems(env.ctx, rootRC(), "nope", 1, 10, domain.DictDataFilter{})
 	if err != nil {
 		t.Fatalf("查询失败: %v", err)
 	}
@@ -229,7 +229,7 @@ func TestListDataItemsTreePagingSlicesRoots(t *testing.T) {
 	env.dicts.addData(domain.DictDataRecord{ID: "r2", DictID: "d1", Code: "r2", Name: "根2", Value: "2", IsEnabled: 1})
 	env.dicts.addData(domain.DictDataRecord{ID: "c1", DictID: "d1", ParentID: strPtr("r1"), Code: "c1", Name: "子1", Value: "3", IsEnabled: 1})
 
-	page, err := env.svc.ListDataItems(env.ctx, rootRC(), "d1", 1, 1, "")
+	page, err := env.svc.ListDataItems(env.ctx, rootRC(), "d1", 1, 1, domain.DictDataFilter{})
 	if err != nil {
 		t.Fatalf("查询失败: %v", err)
 	}

@@ -382,7 +382,7 @@ func TestFrontendModuleListOrder(t *testing.T) {
 			AddRow("m1", "system", "系统管理", "1.0.0", 1, "/admin-remotes/system/1.0.0/mf-manifest.json",
 				nil, nil, 1, 1, time.Now(), time.Now(), 0))
 
-	records, err := repo.ListModules(context.Background(), "")
+	records, err := repo.ListModules(context.Background(), "", "", nil)
 	if err != nil || len(records) != 1 {
 		t.Fatalf("查询失败: %v %v", records, err)
 	}
@@ -401,7 +401,7 @@ func TestFrontendModuleListByCodeOrder(t *testing.T) {
 			"manifest_path", "fallback_version", "fallback_manifest_path", "status", "sort_order",
 			"created_at", "updated_at", "version"}))
 
-	if _, err := repo.ListModules(context.Background(), "content"); err != nil {
+	if _, err := repo.ListModules(context.Background(), "content", "", nil); err != nil {
 		t.Fatalf("查询失败: %v", err)
 	}
 }
@@ -561,7 +561,7 @@ func TestFileListFilterAndOrder(t *testing.T) {
 			AddRow("f1", "a.png", "acat-local/acat-fun/read/user/avatar/x.png", "image/png", "avatar", 10,
 				time.Now(), time.Now()))
 
-	records, total, err := repo.ListFiles(context.Background(), "avatar", 1, 10)
+	records, total, err := repo.ListFiles(context.Background(), "avatar", "", 1, 10)
 	if err != nil || total != 1 || len(records) != 1 {
 		t.Fatalf("查询失败: %+v %d %v", records, total, err)
 	}

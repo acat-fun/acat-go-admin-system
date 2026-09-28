@@ -162,7 +162,7 @@ func TestListReadersBuildsPageDataAndRoleVO(t *testing.T) {
 	f.readers.users["u1"] = &domain.ReaderUser{ID: "u1", Username: "reader", Status: 1, AgeLevel: 18, CreatedAt: time.Date(2026, 9, 14, 1, 2, 3, 0, time.Local)}
 	f.readers.roles["u1"] = []string{"editor", "viewer"}
 
-	page, err := f.svc.ListReaders(context.Background(), 1, 10, "read")
+	page, err := f.svc.ListReaders(context.Background(), 1, 10, "read", nil)
 	if err != nil {
 		t.Fatalf("查询失败: %v", err)
 	}
@@ -186,7 +186,7 @@ func TestListReadersBuildsPageDataAndRoleVO(t *testing.T) {
 
 func TestListReadersNormalizesPage(t *testing.T) {
 	f := newAdminFixture(t)
-	page, err := f.svc.ListReaders(context.Background(), 0, 0, "")
+	page, err := f.svc.ListReaders(context.Background(), 0, 0, "", nil)
 	if err != nil {
 		t.Fatalf("查询失败: %v", err)
 	}
@@ -418,7 +418,7 @@ func TestListWorkersMapsEnabledRolesOnly(t *testing.T) {
 	// RoleCodes 只返回启用角色（基础设施层已过滤），这里模拟 editor 启用、viewer 禁用。
 	f.workers.roles["w1"] = []string{"editor"}
 
-	page, err := f.svc.ListWorkers(context.Background(), 1, 10, "")
+	page, err := f.svc.ListWorkers(context.Background(), 1, 10, "", nil, "")
 	if err != nil {
 		t.Fatalf("查询失败: %v", err)
 	}
@@ -556,7 +556,7 @@ func TestListRolesVariants(t *testing.T) {
 		t.Errorf("AdminRoleEntity = %+v", all[0])
 	}
 
-	page, err := f.svc.ListRolesPage(context.Background(), 2, 1)
+	page, err := f.svc.ListRolesPage(context.Background(), 2, 1, "", nil)
 	if err != nil {
 		t.Fatalf("分页失败: %v", err)
 	}
@@ -723,7 +723,7 @@ func TestAdminReposMissingReturnsInfrastructureError(t *testing.T) {
 	if err != nil {
 		t.Fatalf("构造失败: %v", err)
 	}
-	_, err = svc.ListReaders(context.Background(), 1, 10, "")
+	_, err = svc.ListReaders(context.Background(), 1, 10, "", nil)
 	if _, isBusiness := apperr.IsBusiness(err); err == nil || isBusiness {
 		t.Fatalf("未注入依赖应返回基础设施错误，实际 %v", err)
 	}

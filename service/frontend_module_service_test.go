@@ -14,7 +14,7 @@ func TestListFrontendModulesEmitsNullFallbackManifestPath(t *testing.T) {
 	env := newTestEnv(t)
 	addModule(env, "m1", "system", "系统管理", "1.0.0", domain.FrontendModuleStatusEnabled, 1, 0)
 
-	list, err := env.svc.ListFrontendModules(env.ctx, "")
+	list, err := env.svc.ListFrontendModules(env.ctx, "", "", nil)
 	if err != nil {
 		t.Fatalf("查询失败: %v", err)
 	}
@@ -286,11 +286,11 @@ func TestListFrontendModulesFiltersByCode(t *testing.T) {
 	addModule(env, "m1", "system", "系统管理", "1.0.0", domain.FrontendModuleStatusEnabled, 1, 0)
 	addModule(env, "m2", "cat-read", "内容运营", "1.0.0", domain.FrontendModuleStatusEnabled, 2, 0)
 
-	all, err := env.svc.ListFrontendModules(env.ctx, "")
+	all, err := env.svc.ListFrontendModules(env.ctx, "", "", nil)
 	if err != nil || len(all) != 2 {
 		t.Fatalf("全量查询异常: %v %v", all, err)
 	}
-	byCode, err := env.svc.ListFrontendModules(env.ctx, "cat-read")
+	byCode, err := env.svc.ListFrontendModules(env.ctx, "cat-read", "", nil)
 	if err != nil || len(byCode) != 1 || byCode[0].ModuleCode != "cat-read" {
 		t.Fatalf("按模块码查询异常: %v %v", byCode, err)
 	}

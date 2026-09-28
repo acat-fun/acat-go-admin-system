@@ -67,13 +67,14 @@ func (s *Service) ListRolesAll(ctx context.Context) ([]domain.AdminRoleEntity, e
 }
 
 // ListRolesPage 返回角色分页列表（默认 GET /roles，元素组装为 WorkerRoleVO）。
-func (s *Service) ListRolesPage(ctx context.Context, pageIndex, pageSize int) (result.PageData[domain.WorkerRoleVO], error) {
+// name 非空时模糊匹配角色名；status 非空时等值过滤。
+func (s *Service) ListRolesPage(ctx context.Context, pageIndex, pageSize int, name string, status *int) (result.PageData[domain.WorkerRoleVO], error) {
 	var empty result.PageData[domain.WorkerRoleVO]
 	if s.roleRepo == nil {
 		return empty, fmt.Errorf("service: 角色数据访问未注入")
 	}
 	pageIndex, pageSize = result.NormalizePage(pageIndex, pageSize)
-	roles, total, err := s.roleRepo.ListPage(ctx, result.Offset(pageIndex, pageSize), pageSize)
+	roles, total, err := s.roleRepo.ListPage(ctx, name, status, result.Offset(pageIndex, pageSize), pageSize)
 	if err != nil {
 		return empty, err
 	}

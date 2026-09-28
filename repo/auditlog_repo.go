@@ -81,8 +81,26 @@ func (s *MemoryAuditLogStore) List(_ context.Context, query domain.AuditLogQuery
 	return domain.AuditLogPage{Total: int64(len(filtered)), List: window}, nil
 }
 
-// matchesAuditLogQuery 判断一条记录是否命中查询条件（分支互斥优先级同仓储查询）。
+// matchesAuditLogQuery 判断一条记录是否命中查询条件（主分支互斥 + Keyword/RequestMethod 叠加）。
 func matchesAuditLogQuery(entry domain.AuditLog, query domain.AuditLogQuery) bool {
+	if !matchesAuditLogPrimary(entry, query) {
+		return false
+	}
+	if method := strings.TrimSpace(query.RequestMethod); method != "" {
+		if entry.RequestMethod == nil || *entry.RequestMethod != method {
+			return false
+		}
+	}
+	if keyword := strings.TrimSpace(query.Keyword); keyword != "" {
+		if !auditLogKeywordMatch(entry, keyword) {
+			return false
+		}
+	}
+	return true
+}
+
+// matchesAuditLogPrimary 判定主过滤分支（Type → UserType → UserID → 时间）。
+func matchesAuditLogPrimary(entry domain.AuditLog, query domain.AuditLogQuery) bool {
 	created := parseAuditTime(entry.CreatedAt)
 	switch {
 	case query.Type != "":
@@ -92,7 +110,6 @@ func matchesAuditLogQuery(entry domain.AuditLog, query domain.AuditLogQuery) boo
 	case query.UserID != "":
 		return entry.UserID != nil && *entry.UserID == query.UserID
 	case query.CreatedFrom != nil && query.CreatedTo != nil:
-		// 时间区间为闭区间：两端都可取等。
 		return !created.IsZero() && !created.Before(*query.CreatedFrom) && !created.After(*query.CreatedTo)
 	case query.CreatedFrom != nil:
 		return !created.IsZero() && !created.Before(*query.CreatedFrom)
@@ -101,6 +118,18 @@ func matchesAuditLogQuery(entry domain.AuditLog, query domain.AuditLogQuery) boo
 	default:
 		return true
 	}
+}
+
+// auditLogKeywordMatch 在 username / requestUri / detail 上做不区分大小写的包含匹配。
+func auditLogKeywordMatch(entry domain.AuditLog, keyword string) bool {
+	lowered := strings.ToLower(keyword)
+	fields := []*string{entry.Username, entry.RequestURI, entry.Detail}
+	for _, field := range fields {
+		if field != nil && strings.Contains(strings.ToLower(*field), lowered) {
+			return true
+		}
+	}
+	return false
 }
 
 // DeleteBefore 实现 AuditLogStore。

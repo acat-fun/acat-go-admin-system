@@ -228,7 +228,7 @@ func (s *Service) DeleteDict(ctx context.Context, id string) error {
 // ---------------------------------------------------------------------------
 
 // ListDataItems。
-func (s *Service) ListDataItems(ctx context.Context, rc RequestContext, dictID string, pageIndex, pageSize int, name string) (any, error) {
+func (s *Service) ListDataItems(ctx context.Context, rc RequestContext, dictID string, pageIndex, pageSize int, filter domain.DictDataFilter) (any, error) {
 	realID, err := s.resolveDictID(ctx, dictID)
 	if err != nil {
 		return nil, err
@@ -243,11 +243,11 @@ func (s *Service) ListDataItems(ctx context.Context, rc RequestContext, dictID s
 	isTree := dict != nil && dict.IsTree == 1
 
 	if isTree {
-		records, listErr := s.dicts.ListAllDataItems(ctx, realID, nil)
+		records, listErr := s.dicts.ListAllDataItems(ctx, realID, filter.IsEnabled)
 		if listErr != nil {
 			return nil, listErr
 		}
-		filtered := filterDataItemsByName(records, name)
+		filtered := filterDataItems(records, filter)
 		vos, mapErr := s.toDictDataVOs(ctx, rc, filtered)
 		if mapErr != nil {
 			return nil, mapErr
@@ -259,7 +259,7 @@ func (s *Service) ListDataItems(ctx context.Context, rc RequestContext, dictID s
 		return withHeadNodeTotal(page, int64(len(tree))), nil
 	}
 
-	records, total, err := s.dicts.ListDataItems(ctx, realID, domain.DictDataFilter{Name: name}, pageIndex, pageSize)
+	records, total, err := s.dicts.ListDataItems(ctx, realID, filter, pageIndex, pageSize)
 	if err != nil {
 		return nil, err
 	}
@@ -833,19 +833,32 @@ func (s *Service) toDictDataVOs(ctx context.Context, rc RequestContext, records 
 	return out, nil
 }
 
-// filterDataItemsByName。
-func filterDataItemsByName(records []domain.DictDataRecord, name string) []domain.DictDataRecord {
-	trimmed := strings.TrimSpace(name)
-	if trimmed == "" {
+// filterDataItems 按 DictDataFilter 过滤内存中的数据项（树字典分页前使用）。
+func filterDataItems(records []domain.DictDataRecord, filter domain.DictDataFilter) []domain.DictDataRecord {
+	name := strings.TrimSpace(filter.Name)
+	value := strings.TrimSpace(filter.Value)
+	if name == "" && value == "" && filter.AgeLevel == nil && filter.IsEnabled == nil {
 		return records
 	}
-	lowered := strings.ToLower(trimmed)
+	nameLower := strings.ToLower(name)
+	valueLower := strings.ToLower(value)
 	out := make([]domain.DictDataRecord, 0, len(records))
 	for _, record := range records {
-		if strings.Contains(strings.ToLower(record.Name), lowered) ||
-			strings.Contains(strings.ToLower(record.Code), lowered) {
-			out = append(out, record)
+		if name != "" &&
+			!strings.Contains(strings.ToLower(record.Name), nameLower) &&
+			!strings.Contains(strings.ToLower(record.Code), nameLower) {
+			continue
 		}
+		if value != "" && !strings.Contains(strings.ToLower(record.Value), valueLower) {
+			continue
+		}
+		if filter.AgeLevel != nil && record.AgeLevel != *filter.AgeLevel {
+			continue
+		}
+		if filter.IsEnabled != nil && record.IsEnabled != *filter.IsEnabled {
+			continue
+		}
+		out = append(out, record)
 	}
 	return out
 }

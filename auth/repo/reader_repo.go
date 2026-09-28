@@ -14,8 +14,8 @@ import (
 //
 // SQL 语句形状保持稳定（测试按字面断言）。
 type ReaderUserRepo interface {
-	// List 分页查询：keyword 对 username/email 做 LIKE。
-	List(ctx context.Context, keyword string, offset, limit int) ([]domain.ReaderUser, int64, error)
+	// List 分页查询：keyword 对 username/email 做 LIKE；status 非空时等值过滤。
+	List(ctx context.Context, keyword string, status *int, offset, limit int) ([]domain.ReaderUser, int64, error)
 	// FindByUsername 按用户名查询未删除用户。
 	FindByUsername(ctx context.Context, username string) (*domain.ReaderUser, error)
 	// FindByID 按主键查询未删除用户。
@@ -47,13 +47,17 @@ const readerColumns = "id, username, password, email, avatar, status, muted, age
 // List 实现 ReaderUserRepo。
 //
 // 这里显式 ORDER BY id ASC 保证分页稳定且与观测结果一致。
-func (r *MySQLReaderRepo) List(ctx context.Context, keyword string, offset, limit int) ([]domain.ReaderUser, int64, error) {
+func (r *MySQLReaderRepo) List(ctx context.Context, keyword string, status *int, offset, limit int) ([]domain.ReaderUser, int64, error) {
 	where := " WHERE is_deleted = 0"
-	args := make([]any, 0, 4)
+	args := make([]any, 0, 5)
 	if keyword != "" {
 		where += " AND (username LIKE ? OR email LIKE ?)"
 		pattern := "%" + keyword + "%"
 		args = append(args, pattern, pattern)
+	}
+	if status != nil {
+		where += " AND status = ?"
+		args = append(args, *status)
 	}
 
 	var total int64

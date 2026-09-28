@@ -65,7 +65,7 @@ func (s *stubFileRepo) FindFileByID(context.Context, string) (*domain.FileRecord
 	return nil, repo.ErrNotFound
 }
 
-func (s *stubFileRepo) ListFiles(context.Context, string, int, int) ([]domain.FileRecord, int64, error) {
+func (s *stubFileRepo) ListFiles(context.Context, string, string, int, int) ([]domain.FileRecord, int64, error) {
 	return []domain.FileRecord{}, 0, nil
 }
 

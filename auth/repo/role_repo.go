@@ -17,7 +17,8 @@ type RoleRepo interface {
 	// List 查询全量未删除角色（all=true 列表、下拉与工作人员角色装配使用）。
 	List(ctx context.Context) ([]domain.Role, error)
 	// ListPage 分页查询未删除角色（默认分页列表）。
-	ListPage(ctx context.Context, offset, limit int) ([]domain.Role, int64, error)
+	// name 非空时对 name LIKE；status 非空时等值过滤。
+	ListPage(ctx context.Context, name string, status *int, offset, limit int) ([]domain.Role, int64, error)
 	// FindByID 按主键查询未删除角色。
 	FindByID(ctx context.Context, id string) (*domain.Role, error)
 	// FindByIDs 批量按主键查询未删除角色，用于过滤不存在的角色 id。
@@ -62,13 +63,24 @@ func (r *MySQLRoleRepo) List(ctx context.Context) ([]domain.Role, error) {
 }
 
 // ListPage 实现 RoleRepo。
-func (r *MySQLRoleRepo) ListPage(ctx context.Context, offset, limit int) ([]domain.Role, int64, error) {
+func (r *MySQLRoleRepo) ListPage(ctx context.Context, name string, status *int, offset, limit int) ([]domain.Role, int64, error) {
+	where := " WHERE is_deleted = 0"
+	args := make([]any, 0, 4)
+	if trimmed := strings.TrimSpace(name); trimmed != "" {
+		where += " AND name LIKE ?"
+		args = append(args, "%"+trimmed+"%")
+	}
+	if status != nil {
+		where += " AND status = ?"
+		args = append(args, *status)
+	}
+
 	var total int64
-	if err := r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM t_acat_role WHERE is_deleted = 0").Scan(&total); err != nil {
+	if err := r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM t_acat_role"+where, args...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("统计角色失败: %w", err)
 	}
-	query := "SELECT " + roleColumns + " FROM t_acat_role WHERE is_deleted = 0 ORDER BY id ASC LIMIT ? OFFSET ?"
-	rows, err := r.db.QueryContext(ctx, query, limit, offset)
+	query := "SELECT " + roleColumns + " FROM t_acat_role" + where + " ORDER BY id ASC LIMIT ? OFFSET ?"
+	rows, err := r.db.QueryContext(ctx, query, append(append([]any{}, args...), limit, offset)...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("查询角色失败: %w", err)
 	}

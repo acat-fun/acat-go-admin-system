@@ -36,7 +36,7 @@ func (a *API) handleListReaders(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	pageIndex, pageSize := queryPage(req)
-	data, err := a.svc.ListReaders(req.Context(), pageIndex, pageSize, req.URL.Query().Get("keyword"))
+	data, err := a.svc.ListReaders(req.Context(), pageIndex, pageSize, req.URL.Query().Get("keyword"), queryIntPtr(req, "status"))
 	if err != nil {
 		writeServiceError(req, w, err)
 		return
@@ -145,7 +145,8 @@ func (a *API) handleListWorkers(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	pageIndex, pageSize := queryPage(req)
-	data, err := a.svc.ListWorkers(req.Context(), pageIndex, pageSize, req.URL.Query().Get("keyword"))
+	data, err := a.svc.ListWorkers(req.Context(), pageIndex, pageSize,
+		req.URL.Query().Get("keyword"), queryIntPtr(req, "status"), req.URL.Query().Get("roleId"))
 	if err != nil {
 		writeServiceError(req, w, err)
 		return

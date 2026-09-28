@@ -96,6 +96,19 @@ func queryInt(req *http.Request, name string, fallback int) int {
 	return value
 }
 
+// queryIntPtr 读取可空整型查询参数。
+func queryIntPtr(req *http.Request, name string) *int {
+	raw := strings.TrimSpace(req.URL.Query().Get(name))
+	if raw == "" {
+		return nil
+	}
+	value, err := strconv.Atoi(raw)
+	if err != nil {
+		return nil
+	}
+	return &value
+}
+
 // queryBool 解析布尔查询参数（true/on/yes/1 为真，其余为假）。
 func queryBool(req *http.Request, name string) bool {
 	switch strings.ToLower(strings.TrimSpace(req.URL.Query().Get(name))) {

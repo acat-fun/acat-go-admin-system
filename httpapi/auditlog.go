@@ -31,7 +31,8 @@ func (a *API) handleListAuditLogs(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	data, err := a.svc.ListAuditLogs(req.Context(), pageIndex, pageSize,
-		queryString(req, "type"), queryString(req, "userType"))
+		queryString(req, "type"), queryString(req, "userType"),
+		queryString(req, "keyword"), queryString(req, "requestMethod"))
 	if err != nil {
 		writeAuditStoreError(req, w, err)
 		return

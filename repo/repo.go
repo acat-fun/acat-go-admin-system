@@ -129,8 +129,9 @@ type PageRepo interface {
 
 // FrontendModuleRepo 提供前端模块的读写（管理端全量视图 + 启用过滤）。
 type FrontendModuleRepo interface {
-	// ListModules 查询前端模块；moduleCode 为空时全量（清单顺序），否则按模块码过滤。
-	ListModules(ctx context.Context, moduleCode string) ([]domain.FrontendModuleRecord, error)
+	// ListModules 查询前端模块。
+	// moduleCode 非空时精确匹配；keyword 非空时对 name/module_code LIKE；status 非空时等值过滤。
+	ListModules(ctx context.Context, moduleCode, keyword string, status *int) ([]domain.FrontendModuleRecord, error)
 	// FindModuleByID 按主键查询前端模块。
 	FindModuleByID(ctx context.Context, id string) (*domain.FrontendModuleRecord, error)
 	// FindModuleByCodeAndVersion 按 (moduleCode, releaseVersion) 查询单条模块。
@@ -170,7 +171,8 @@ type I18nTypeRepo interface {
 // FileRepo 提供 t_acat_file 的数据访问。
 type FileRepo interface {
 	// ListFiles 分页查询文件（ORDER BY created_at DESC）。
-	ListFiles(ctx context.Context, fileType string, pageIndex, pageSize int) ([]domain.FileRecord, int64, error)
+	// pathKeyword 非空时对 path/name 做 LIKE。
+	ListFiles(ctx context.Context, fileType, pathKeyword string, pageIndex, pageSize int) ([]domain.FileRecord, int64, error)
 	// FindFileByID 按主键查询文件。
 	FindFileByID(ctx context.Context, id string) (*domain.FileRecord, error)
 	// InsertFile 新增文件记录。

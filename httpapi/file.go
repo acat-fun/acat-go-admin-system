@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 
 	"github.com/acat-fun/acat-go-admin-system/domain"
 	"github.com/acat-fun/acat-go-admin-system/logic"
@@ -35,7 +36,11 @@ func (a *API) handleListFiles(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	pageIndex, pageSize := queryPage(req)
-	data, err := a.svc.ListFiles(req.Context(), pageIndex, pageSize, queryString(req, "fileType"))
+	pathKeyword := queryString(req, "path")
+	if strings.TrimSpace(pathKeyword) == "" {
+		pathKeyword = queryString(req, "keyword")
+	}
+	data, err := a.svc.ListFiles(req.Context(), pageIndex, pageSize, queryString(req, "fileType"), pathKeyword)
 	if err != nil {
 		writeServiceError(req, w, err)
 		return

@@ -464,7 +464,7 @@ func TestListFilesPagedAndFiltered(t *testing.T) {
 		t.Fatalf("上传失败: %v", err)
 	}
 
-	page, err := env.svc.ListFiles(env.ctx, 1, 10, "avatar")
+	page, err := env.svc.ListFiles(env.ctx, 1, 10, "avatar", "")
 	if err != nil {
 		t.Fatalf("查询失败: %v", err)
 	}

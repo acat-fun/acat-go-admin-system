@@ -8,13 +8,15 @@ import (
 )
 
 // ListAuditLogs。
-// type 优先于 userType；createdAt DESC；pageIndex 1 基。
-func (s *Service) ListAuditLogs(ctx context.Context, pageIndex, pageSize int, logType, userType string) (any, error) {
+// type 优先于 userType；keyword / requestMethod 叠加过滤；createdAt DESC；pageIndex 1 基。
+func (s *Service) ListAuditLogs(ctx context.Context, pageIndex, pageSize int, logType, userType, keyword, requestMethod string) (any, error) {
 	page, err := s.audits.List(ctx, domain.AuditLogQuery{
-		Type:      logType,
-		UserType:  userType,
-		PageIndex: pageIndex,
-		PageSize:  pageSize,
+		Type:          logType,
+		UserType:      userType,
+		Keyword:       keyword,
+		RequestMethod: requestMethod,
+		PageIndex:     pageIndex,
+		PageSize:      pageSize,
 	})
 	if err != nil {
 		return nil, err

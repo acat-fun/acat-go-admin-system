@@ -18,7 +18,7 @@ func NewFileRepo(db DBTX) *MySQLFileRepo { return &MySQLFileRepo{db: db} }
 const fileColumns = "id, name, path, type, file_type, size, created_at, updated_at"
 
 // ListFiles 实现 FileRepo。
-func (r *MySQLFileRepo) ListFiles(ctx context.Context, fileType string, pageIndex, pageSize int) ([]domain.FileRecord, int64, error) {
+func (r *MySQLFileRepo) ListFiles(ctx context.Context, fileType, pathKeyword string, pageIndex, pageSize int) ([]domain.FileRecord, int64, error) {
 	query := "SELECT " + fileColumns + " FROM t_acat_file WHERE is_deleted = 0"
 	countQuery := "SELECT COUNT(*) FROM t_acat_file WHERE is_deleted = 0"
 	args := []any{}
@@ -26,6 +26,12 @@ func (r *MySQLFileRepo) ListFiles(ctx context.Context, fileType string, pageInde
 		query += " AND file_type = ?"
 		countQuery += " AND file_type = ?"
 		args = append(args, fileType)
+	}
+	if trimmed := trimSpace(pathKeyword); trimmed != "" {
+		query += " AND (path LIKE ? OR name LIKE ?)"
+		countQuery += " AND (path LIKE ? OR name LIKE ?)"
+		pattern := "%" + trimmed + "%"
+		args = append(args, pattern, pattern)
 	}
 
 	var total int64

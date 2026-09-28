@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
+	"strings"
 	"time"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -313,28 +315,39 @@ func (d auditLogDocument) toDomain(location *time.Location) domain.AuditLog {
 	return entry
 }
 
-// auditLogFilter 构造过滤条件（互斥优先级见 domain.AuditLogQuery）。
+// auditLogFilter 构造过滤条件（主分支互斥见 domain.AuditLogQuery；Keyword/RequestMethod 叠加 AND）。
 func auditLogFilter(query domain.AuditLogQuery) bson.D {
+	filter := bson.D{}
 	switch {
 	case query.Type != "":
-		return bson.D{{Key: "type", Value: query.Type}}
+		filter = append(filter, bson.E{Key: "type", Value: query.Type})
 	case query.UserType != "":
-		return bson.D{{Key: "userType", Value: query.UserType}}
+		filter = append(filter, bson.E{Key: "userType", Value: query.UserType})
 	case query.UserID != "":
-		return bson.D{{Key: "userId", Value: query.UserID}}
+		filter = append(filter, bson.E{Key: "userId", Value: query.UserID})
 	case query.CreatedFrom != nil && query.CreatedTo != nil:
-		// 时间区间为闭区间：$gte 且 $lte。
-		return bson.D{{Key: "createdAt", Value: bson.D{
+		filter = append(filter, bson.E{Key: "createdAt", Value: bson.D{
 			{Key: "$gte", Value: *query.CreatedFrom},
 			{Key: "$lte", Value: *query.CreatedTo},
-		}}}
+		}})
 	case query.CreatedFrom != nil:
-		return bson.D{{Key: "createdAt", Value: bson.D{{Key: "$gte", Value: *query.CreatedFrom}}}}
+		filter = append(filter, bson.E{Key: "createdAt", Value: bson.D{{Key: "$gte", Value: *query.CreatedFrom}}})
 	case query.CreatedTo != nil:
-		return bson.D{{Key: "createdAt", Value: bson.D{{Key: "$lte", Value: *query.CreatedTo}}}}
-	default:
-		return bson.D{}
+		filter = append(filter, bson.E{Key: "createdAt", Value: bson.D{{Key: "$lte", Value: *query.CreatedTo}}})
 	}
+	if method := strings.TrimSpace(query.RequestMethod); method != "" {
+		filter = append(filter, bson.E{Key: "requestMethod", Value: method})
+	}
+	if keyword := strings.TrimSpace(query.Keyword); keyword != "" {
+		pattern := regexp.QuoteMeta(keyword)
+		regex := bson.D{{Key: "$regex", Value: pattern}, {Key: "$options", Value: "i"}}
+		filter = append(filter, bson.E{Key: "$or", Value: bson.A{
+			bson.D{{Key: "username", Value: regex}},
+			bson.D{{Key: "requestUri", Value: regex}},
+			bson.D{{Key: "detail", Value: regex}},
+		}})
+	}
+	return filter
 }
 
 // auditLogIDValue 把领域字符串 id 转换为 BSON `_id`：

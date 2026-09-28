@@ -121,12 +121,15 @@ func newAdminStubReaders() *adminStubReaders {
 	return &adminStubReaders{users: map[string]*domain.ReaderUser{}, roles: map[string][]string{}}
 }
 
-func (s *adminStubReaders) List(_ context.Context, keyword string, offset, limit int) ([]domain.ReaderUser, int64, error) {
+func (s *adminStubReaders) List(_ context.Context, keyword string, status *int, offset, limit int) ([]domain.ReaderUser, int64, error) {
 	ids := sortedKeys(s.users)
 	out := make([]domain.ReaderUser, 0, len(ids))
 	for _, id := range ids {
 		user := s.users[id]
 		if keyword != "" && !strings.Contains(user.Username, keyword) && !strings.Contains(derefString(user.Email), keyword) {
+			continue
+		}
+		if status != nil && user.Status != *status {
 			continue
 		}
 		out = append(out, *user)
@@ -212,13 +215,29 @@ func newAdminStubWorkersRepo() *adminStubWorkersRepo {
 	return &adminStubWorkersRepo{workers: map[string]*domain.AdminWorker{}, roles: map[string][]string{}}
 }
 
-func (s *adminStubWorkersRepo) List(_ context.Context, keyword string, offset, limit int) ([]domain.AdminWorker, int64, error) {
+func (s *adminStubWorkersRepo) List(_ context.Context, keyword string, status *int, roleID string, offset, limit int) ([]domain.AdminWorker, int64, error) {
 	ids := sortedKeys(s.workers)
 	out := make([]domain.AdminWorker, 0, len(ids))
+	roleID = strings.TrimSpace(roleID)
 	for _, id := range ids {
 		worker := s.workers[id]
 		if keyword != "" && !strings.Contains(worker.Username, keyword) && !strings.Contains(derefString(worker.Email), keyword) {
 			continue
+		}
+		if status != nil && worker.Status != *status {
+			continue
+		}
+		if roleID != "" {
+			matched := false
+			for _, code := range s.roles[id] {
+				if code == roleID {
+					matched = true
+					break
+				}
+			}
+			if !matched {
+				continue
+			}
 		}
 		out = append(out, *worker)
 	}
@@ -311,17 +330,28 @@ func (s *adminStubRoles) List(context.Context) ([]domain.Role, error) {
 	return out, nil
 }
 
-func (s *adminStubRoles) ListPage(_ context.Context, offset, limit int) ([]domain.Role, int64, error) {
+func (s *adminStubRoles) ListPage(_ context.Context, name string, status *int, offset, limit int) ([]domain.Role, int64, error) {
 	all, _ := s.List(context.Background())
-	total := int64(len(all))
-	if offset > len(all) {
+	filtered := make([]domain.Role, 0, len(all))
+	name = strings.TrimSpace(name)
+	for _, role := range all {
+		if name != "" && !strings.Contains(role.Name, name) {
+			continue
+		}
+		if status != nil && role.Status != *status {
+			continue
+		}
+		filtered = append(filtered, role)
+	}
+	total := int64(len(filtered))
+	if offset > len(filtered) {
 		return []domain.Role{}, total, nil
 	}
-	all = all[offset:]
-	if limit < len(all) {
-		all = all[:limit]
+	filtered = filtered[offset:]
+	if limit < len(filtered) {
+		filtered = filtered[:limit]
 	}
-	return all, total, nil
+	return filtered, total, nil
 }
 
 func (s *adminStubRoles) FindByID(_ context.Context, id string) (*domain.Role, error) {

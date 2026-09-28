@@ -253,6 +253,18 @@ func (r *MySQLDictRepo) ListDataItems(ctx context.Context, dictID string, filter
 		where += " AND (name LIKE ? OR code LIKE ?)"
 		args = append(args, "%"+trimmed+"%", "%"+trimmed+"%")
 	}
+	if trimmed := trimSpace(filter.Value); trimmed != "" {
+		where += " AND value LIKE ?"
+		args = append(args, "%"+trimmed+"%")
+	}
+	if filter.AgeLevel != nil {
+		where += " AND age_level = ?"
+		args = append(args, *filter.AgeLevel)
+	}
+	if filter.IsEnabled != nil {
+		where += " AND is_enabled = ?"
+		args = append(args, *filter.IsEnabled)
+	}
 
 	var total int64
 	if err := r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM t_acat_dict_data"+where, args...).Scan(&total); err != nil {

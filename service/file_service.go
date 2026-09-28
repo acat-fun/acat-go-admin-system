@@ -33,8 +33,8 @@ func ValidateFileType(fileType string) (string, error) {
 }
 
 // ListFiles。
-func (s *Service) ListFiles(ctx context.Context, pageIndex, pageSize int, fileType string) (any, error) {
-	records, total, err := s.files.ListFiles(ctx, fileType, pageIndex, pageSize)
+func (s *Service) ListFiles(ctx context.Context, pageIndex, pageSize int, fileType, pathKeyword string) (any, error) {
+	records, total, err := s.files.ListFiles(ctx, fileType, pathKeyword, pageIndex, pageSize)
 	if err != nil {
 		return nil, err
 	}

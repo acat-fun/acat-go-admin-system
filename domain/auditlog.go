@@ -140,6 +140,7 @@ type AuditLog struct {
 //
 // 过滤分支按「if/else if」互斥优先级依次判定：
 // Type → UserType → UserID → 时间区间 → 全量。
+// Keyword / RequestMethod 作为附加 AND 条件叠加在上述主分支之上。
 // 时间区间与单边时间条件属于仓储等价能力（供清理预览与测试使用），
 // 不改变列表接口的可观测行为。
 type AuditLogQuery struct {
@@ -149,6 +150,10 @@ type AuditLogQuery struct {
 	UserType string
 	// UserID 非空且前面条件为空时按 userId 精确过滤。
 	UserID string
+	// Keyword 非空时对 username / requestUri / detail 做包含匹配（不区分大小写）。
+	Keyword string
+	// RequestMethod 非空时按 requestMethod 精确过滤。
+	RequestMethod string
 	// CreatedFrom / CreatedTo 组成时间区间，两端均为闭区间（$gte 且 $lte）。
 	// 只填其一时退化为 $gte / $lte 单边过滤。
 	CreatedFrom *time.Time

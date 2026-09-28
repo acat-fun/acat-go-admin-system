@@ -29,14 +29,14 @@ const (
 	MessageOnlyRootAssignRole = "只有超级管理员才能分配 %s 角色"
 )
 
-// ListWorkers 分页查询工作人员：keyword LIKE + ORDER BY id ASC。
-func (s *Service) ListWorkers(ctx context.Context, pageIndex, pageSize int, keyword string) (result.PageData[domain.WorkerVO], error) {
+// ListWorkers 分页查询工作人员：keyword LIKE + 可选 status/roleId + ORDER BY id ASC。
+func (s *Service) ListWorkers(ctx context.Context, pageIndex, pageSize int, keyword string, status *int, roleID string) (result.PageData[domain.WorkerVO], error) {
 	var empty result.PageData[domain.WorkerVO]
 	if s.adminWorkerRepo == nil || s.roleRepo == nil {
 		return empty, fmt.Errorf("service: 工作人员/角色数据访问未注入")
 	}
 	pageIndex, pageSize = result.NormalizePage(pageIndex, pageSize)
-	workers, total, err := s.adminWorkerRepo.List(ctx, keyword, result.Offset(pageIndex, pageSize), pageSize)
+	workers, total, err := s.adminWorkerRepo.List(ctx, keyword, status, roleID, result.Offset(pageIndex, pageSize), pageSize)
 	if err != nil {
 		return empty, err
 	}

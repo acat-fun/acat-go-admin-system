@@ -10,8 +10,8 @@ import (
 )
 
 // ListFrontendModules。
-func (s *Service) ListFrontendModules(ctx context.Context, moduleCode string) ([]domain.FrontendModuleVO, error) {
-	records, err := s.modules.ListModules(ctx, moduleCode)
+func (s *Service) ListFrontendModules(ctx context.Context, moduleCode, keyword string, status *int) ([]domain.FrontendModuleVO, error) {
+	records, err := s.modules.ListModules(ctx, moduleCode, keyword, status)
 	if err != nil {
 		return nil, err
 	}

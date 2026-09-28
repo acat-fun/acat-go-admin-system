@@ -186,6 +186,15 @@ func (f *fakeDictRepo) ListDataItems(_ context.Context, dictID string, filter do
 			!strings.Contains(strings.ToLower(record.Code), strings.ToLower(filter.Name)) {
 			continue
 		}
+		if filter.Value != "" && !strings.Contains(strings.ToLower(record.Value), strings.ToLower(filter.Value)) {
+			continue
+		}
+		if filter.AgeLevel != nil && record.AgeLevel != *filter.AgeLevel {
+			continue
+		}
+		if filter.IsEnabled != nil && record.IsEnabled != *filter.IsEnabled {
+			continue
+		}
 		out = append(out, record)
 	}
 	sort.Slice(out, func(i, j int) bool {
@@ -526,12 +535,21 @@ func (f *fakeModuleRepo) addModule(record domain.FrontendModuleRecord) {
 	f.modules[record.ID] = record
 }
 
-func (f *fakeModuleRepo) ListModules(_ context.Context, moduleCode string) ([]domain.FrontendModuleRecord, error) {
+func (f *fakeModuleRepo) ListModules(_ context.Context, moduleCode, keyword string, status *int) ([]domain.FrontendModuleRecord, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	out := make([]domain.FrontendModuleRecord, 0, len(f.modules))
+	keywordLower := strings.ToLower(strings.TrimSpace(keyword))
 	for _, record := range f.modules {
 		if strings.TrimSpace(moduleCode) != "" && record.ModuleCode != moduleCode {
+			continue
+		}
+		if keywordLower != "" &&
+			!strings.Contains(strings.ToLower(record.Name), keywordLower) &&
+			!strings.Contains(strings.ToLower(record.ModuleCode), keywordLower) {
+			continue
+		}
+		if status != nil && record.Status != *status {
 			continue
 		}
 		out = append(out, record)
@@ -755,12 +773,18 @@ func newFakeFileRepo() *fakeFileRepo {
 	return &fakeFileRepo{files: map[string]domain.FileRecord{}}
 }
 
-func (f *fakeFileRepo) ListFiles(_ context.Context, fileType string, pageIndex, pageSize int) ([]domain.FileRecord, int64, error) {
+func (f *fakeFileRepo) ListFiles(_ context.Context, fileType, pathKeyword string, pageIndex, pageSize int) ([]domain.FileRecord, int64, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	out := make([]domain.FileRecord, 0, len(f.files))
+	pathLower := strings.ToLower(strings.TrimSpace(pathKeyword))
 	for _, record := range f.files {
 		if strings.TrimSpace(fileType) != "" && record.FileType != fileType {
+			continue
+		}
+		if pathLower != "" &&
+			!strings.Contains(strings.ToLower(record.Path), pathLower) &&
+			!strings.Contains(strings.ToLower(record.Name), pathLower) {
 			continue
 		}
 		out = append(out, record)

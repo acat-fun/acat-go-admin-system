@@ -66,6 +66,12 @@ type DictFilter struct {
 type DictDataFilter struct {
 	// Name 非空白时匹配 (name LIKE %Name% OR code LIKE %Name%)。
 	Name string
+	// Value 非空白时匹配 value LIKE %Value%。
+	Value string
+	// AgeLevel 非空时等值过滤 age_level。
+	AgeLevel *int
+	// IsEnabled 非空时等值过滤 is_enabled。
+	IsEnabled *int
 }
 
 // LabelRecord 是 t_acat_i18n_label 的一行（仅名称标签所需字段）。

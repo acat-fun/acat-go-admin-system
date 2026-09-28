@@ -41,13 +41,25 @@ func scanModuleRecord(scan func(dest ...any) error) (*domain.FrontendModuleRecor
 
 // ListModules 实现 FrontendModuleRepo。
 //
-// listByModuleCode：WHERE module_code=? ORDER BY created_at DESC。
-func (r *MySQLFrontendModuleRepo) ListModules(ctx context.Context, moduleCode string) ([]domain.FrontendModuleRecord, error) {
+// moduleCode 精确匹配；keyword 对 name/module_code LIKE；status 等值过滤。
+func (r *MySQLFrontendModuleRepo) ListModules(ctx context.Context, moduleCode, keyword string, status *int) ([]domain.FrontendModuleRecord, error) {
 	query := "SELECT " + moduleColumns + " FROM t_acat_frontend_module WHERE is_deleted = 0"
 	args := []any{}
 	if strings.TrimSpace(moduleCode) != "" {
-		query += " AND module_code = ? ORDER BY created_at DESC"
+		query += " AND module_code = ?"
 		args = append(args, moduleCode)
+	}
+	if trimmed := strings.TrimSpace(keyword); trimmed != "" {
+		query += " AND (name LIKE ? OR module_code LIKE ?)"
+		pattern := "%" + trimmed + "%"
+		args = append(args, pattern, pattern)
+	}
+	if status != nil {
+		query += " AND status = ?"
+		args = append(args, *status)
+	}
+	if strings.TrimSpace(moduleCode) != "" {
+		query += " ORDER BY created_at DESC"
 	} else {
 		query += " ORDER BY sort_order ASC, module_code ASC, created_at DESC"
 	}

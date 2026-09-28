@@ -22,12 +22,14 @@ func registerFrontendModuleRoutes(mux *http.ServeMux, auth authMiddleware, a *AP
 	a.route(mux, "PUT "+PathFrontendModules+"/{id}/publication", auth, a.handlePublishFrontendModule)
 }
 
-// handleListFrontendModules 处理 GET /frontend-modules（moduleCode 空 → 全量，否则按模块码过滤）。
+// handleListFrontendModules 处理 GET /frontend-modules。
+// moduleCode 精确匹配；keyword 对 name/moduleCode LIKE；status 等值过滤。
 func (a *API) handleListFrontendModules(w http.ResponseWriter, req *http.Request) {
 	if !a.requirePermission(w, req, logic.SystemFrontendModules) {
 		return
 	}
-	data, err := a.svc.ListFrontendModules(req.Context(), queryString(req, "moduleCode"))
+	data, err := a.svc.ListFrontendModules(req.Context(),
+		queryString(req, "moduleCode"), queryString(req, "keyword"), queryIntPtr(req, "status"))
 	if err != nil {
 		writeServiceError(req, w, err)
 		return

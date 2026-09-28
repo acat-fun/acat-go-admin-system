@@ -49,7 +49,7 @@ func newFakeReaderRepo() *fakeReaderRepo {
 	}
 }
 
-func (f *fakeReaderRepo) List(_ context.Context, keyword string, offset, limit int) ([]domain.ReaderUser, int64, error) {
+func (f *fakeReaderRepo) List(_ context.Context, keyword string, status *int, offset, limit int) ([]domain.ReaderUser, int64, error) {
 	f.listCalls++
 	f.lastKeyword = keyword
 	ids := make([]string, 0, len(f.users))
@@ -61,6 +61,9 @@ func (f *fakeReaderRepo) List(_ context.Context, keyword string, offset, limit i
 	for _, id := range ids {
 		user := f.users[id]
 		if keyword != "" && !strings.Contains(user.Username, keyword) && !strings.Contains(deref(user.Email), keyword) {
+			continue
+		}
+		if status != nil && user.Status != *status {
 			continue
 		}
 		out = append(out, *user)
@@ -163,7 +166,7 @@ func newFakeAdminWorkerRepo() *fakeAdminWorkerRepo {
 	}
 }
 
-func (f *fakeAdminWorkerRepo) List(_ context.Context, keyword string, offset, limit int) ([]domain.AdminWorker, int64, error) {
+func (f *fakeAdminWorkerRepo) List(_ context.Context, keyword string, status *int, roleID string, offset, limit int) ([]domain.AdminWorker, int64, error) {
 	f.lastKeyword = keyword
 	ids := make([]string, 0, len(f.workers))
 	for id := range f.workers {
@@ -171,10 +174,34 @@ func (f *fakeAdminWorkerRepo) List(_ context.Context, keyword string, offset, li
 	}
 	sort.Strings(ids)
 	out := make([]domain.AdminWorker, 0, len(ids))
+	roleID = strings.TrimSpace(roleID)
 	for _, id := range ids {
 		worker := f.workers[id]
 		if keyword != "" && !strings.Contains(worker.Username, keyword) && !strings.Contains(deref(worker.Email), keyword) {
 			continue
+		}
+		if status != nil && worker.Status != *status {
+			continue
+		}
+		if roleID != "" {
+			matched := false
+			for _, rid := range f.roleInserted[id] {
+				if rid == roleID {
+					matched = true
+					break
+				}
+			}
+			if !matched {
+				for _, code := range f.roles[id] {
+					if code == roleID {
+						matched = true
+						break
+					}
+				}
+			}
+			if !matched {
+				continue
+			}
 		}
 		out = append(out, *worker)
 	}
@@ -293,17 +320,28 @@ func (f *fakeRoleRepo) List(context.Context) ([]domain.Role, error) {
 	return out, nil
 }
 
-func (f *fakeRoleRepo) ListPage(_ context.Context, offset, limit int) ([]domain.Role, int64, error) {
+func (f *fakeRoleRepo) ListPage(_ context.Context, name string, status *int, offset, limit int) ([]domain.Role, int64, error) {
 	all, _ := f.List(context.Background())
-	total := int64(len(all))
-	if offset > len(all) {
+	filtered := make([]domain.Role, 0, len(all))
+	name = strings.TrimSpace(name)
+	for _, role := range all {
+		if name != "" && !strings.Contains(role.Name, name) {
+			continue
+		}
+		if status != nil && role.Status != *status {
+			continue
+		}
+		filtered = append(filtered, role)
+	}
+	total := int64(len(filtered))
+	if offset > len(filtered) {
 		return []domain.Role{}, total, nil
 	}
-	all = all[offset:]
-	if limit < len(all) {
-		all = all[:limit]
+	filtered = filtered[offset:]
+	if limit < len(filtered) {
+		filtered = filtered[:limit]
 	}
-	return all, total, nil
+	return filtered, total, nil
 }
 
 func (f *fakeRoleRepo) FindByID(_ context.Context, id string) (*domain.Role, error) {

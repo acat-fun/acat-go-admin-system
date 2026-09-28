@@ -24,14 +24,14 @@ const (
 
 // ListReaders 分页查询读者用户。
 //
-// keyword 对 username/email 做 LIKE（%kw%），无排序。
-func (s *Service) ListReaders(ctx context.Context, pageIndex, pageSize int, keyword string) (result.PageData[domain.UserVO], error) {
+// keyword 对 username/email 做 LIKE（%kw%）；status 非空时等值过滤。
+func (s *Service) ListReaders(ctx context.Context, pageIndex, pageSize int, keyword string, status *int) (result.PageData[domain.UserVO], error) {
 	var empty result.PageData[domain.UserVO]
 	if s.readerRepo == nil {
 		return empty, fmt.Errorf("service: 读者用户数据访问未注入")
 	}
 	pageIndex, pageSize = result.NormalizePage(pageIndex, pageSize)
-	users, total, err := s.readerRepo.List(ctx, keyword, result.Offset(pageIndex, pageSize), pageSize)
+	users, total, err := s.readerRepo.List(ctx, keyword, status, result.Offset(pageIndex, pageSize), pageSize)
 	if err != nil {
 		return empty, err
 	}

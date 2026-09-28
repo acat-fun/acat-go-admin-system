@@ -137,7 +137,12 @@ func (a *API) handleListDictData(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	pageIndex, pageSize := queryPage(req)
-	data, err := a.svc.ListDataItems(req.Context(), rc, dictID, pageIndex, pageSize, queryString(req, "name"))
+	data, err := a.svc.ListDataItems(req.Context(), rc, dictID, pageIndex, pageSize, domain.DictDataFilter{
+		Name:      queryString(req, "name"),
+		Value:     queryString(req, "value"),
+		AgeLevel:  queryIntPtr(req, "ageLevel"),
+		IsEnabled: queryIntPtr(req, "isEnabled"),
+	})
 	if err != nil {
 		writeServiceError(req, w, err)
 		return
