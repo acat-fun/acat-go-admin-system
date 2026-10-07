@@ -111,11 +111,16 @@ func (r *MySQLWorkerRepo) RoleCodes(ctx context.Context, userID string) ([]strin
 	return r.queryStrings(ctx, query, userID)
 }
 
+// pageCodeExpr 是页面权限码表达式（表别名 uc）：
+// permission_code 非空时以它为准，为空回落稳定 code——与 t_acat_page.permission_code 的列注释、
+// repo/page_repo.go 的认领口径一致；宿主的页面行 code 是稳定标识，权限码可以另设。
+const pageCodeExpr = "CASE WHEN COALESCE(uc.permission_code, '') = '' THEN uc.code ELSE uc.permission_code END"
+
 // URLAndButtonCodes 实现 WorkerRepo（页面码 resource_type=0 与按钮码 resource_type=1 取并集）。
 func (r *MySQLWorkerRepo) URLAndButtonCodes(ctx context.Context, userID string) ([]string, error) {
-	const query = `
+	query := `
 		SELECT code FROM (
-			SELECT DISTINCT uc.code
+			SELECT DISTINCT ` + pageCodeExpr + ` AS code
 			FROM t_acat_page uc
 			INNER JOIN t_acat_role_permission rp ON uc.id = rp.permission_id AND rp.resource_type = 0
 			INNER JOIN t_acat_user_role ur ON rp.role_id = ur.role_id
@@ -143,8 +148,8 @@ func (r *MySQLWorkerRepo) URLAndButtonCodes(ctx context.Context, userID string) 
 
 // URLCodes 实现 WorkerRepo（仅页面码，resource_type=0）。
 func (r *MySQLWorkerRepo) URLCodes(ctx context.Context, userID string) ([]string, error) {
-	const query = `
-		SELECT DISTINCT uc.code
+	query := `
+		SELECT DISTINCT ` + pageCodeExpr + ` AS code
 		FROM t_acat_page uc
 		INNER JOIN t_acat_role_permission rp ON uc.id = rp.permission_id AND rp.resource_type = 0
 		INNER JOIN t_acat_user_role ur ON rp.role_id = ur.role_id
@@ -161,7 +166,8 @@ func (r *MySQLWorkerRepo) URLCodes(ctx context.Context, userID string) ([]string
 // AllPermissionCodes 实现 WorkerRepo（启用页面码 ∪ 全部按钮码）。
 func (r *MySQLWorkerRepo) AllPermissionCodes(ctx context.Context) ([]string, error) {
 	const query = `
-		SELECT code FROM t_acat_page WHERE is_deleted = 0 AND is_enabled = 1
+		SELECT CASE WHEN COALESCE(permission_code, '') = '' THEN code ELSE permission_code END AS code
+		FROM t_acat_page WHERE is_deleted = 0 AND is_enabled = 1
 		UNION
 		SELECT code FROM t_acat_permission WHERE is_deleted = 0`
 	return r.queryStrings(ctx, query)
@@ -169,7 +175,8 @@ func (r *MySQLWorkerRepo) AllPermissionCodes(ctx context.Context) ([]string, err
 
 // AllURLCodes 实现 WorkerRepo（启用页面码）。
 func (r *MySQLWorkerRepo) AllURLCodes(ctx context.Context) ([]string, error) {
-	const query = `SELECT code FROM t_acat_page WHERE is_deleted = 0 AND is_enabled = 1`
+	const query = `SELECT CASE WHEN COALESCE(permission_code, '') = '' THEN code ELSE permission_code END AS code
+		FROM t_acat_page WHERE is_deleted = 0 AND is_enabled = 1`
 	return r.queryStrings(ctx, query)
 }
 

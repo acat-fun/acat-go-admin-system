@@ -108,7 +108,8 @@ func TestRootAllPermissionCodes(t *testing.T) {
 	workers, _, _, mock, cleanup := newMock(t)
 	defer cleanup()
 
-	mock.ExpectQuery("SELECT code FROM t_acat_page WHERE is_deleted = 0 AND is_enabled = 1").
+	// 页面码按 permission_code 优先、空则回落 code 的口径取（与 t_acat_page 列语义一致）。
+	mock.ExpectQuery("SELECT CASE WHEN COALESCE\\(permission_code, ''\\) = '' THEN code ELSE permission_code END AS code").
 		WillReturnRows(sqlmock.NewRows([]string{"code"}).AddRow("acat:admin:system"))
 
 	codes, err := workers.AllPermissionCodes(context.Background())
