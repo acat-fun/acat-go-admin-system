@@ -6,9 +6,10 @@ import (
 	"time"
 )
 
-// 本文件定义审计日志域（MongoDB 集合 audit_logs）的模型与时间文本规则。
+// 本文件定义审计日志域的模型与时间文本规则。
 //
-// 存储实现是 repo.MongoAuditLogStore；
+// 存储实现有两种：repo.MongoAuditLogStore（集合 audit_logs）与 repo.MySQLAuditLogStore
+// （关系表 t_acat_audit_log，列与 Mongo 文档字段一一对应），按宿主配置项选择；
 // repo.MemoryAuditLogStore 仅作为单元测试替身保留。
 
 // AuditLogCollection 是 Mongo 集合名。
@@ -134,13 +135,16 @@ type AuditLog struct {
 	UpdateBy      *string `json:"updateBy"`
 	CreatedAt     *string `json:"createdAt"`
 	UpdatedAt     *string `json:"updatedAt"`
+	// ResourceType / ResourceID 描述被操作资源（宿主平台审计使用，如 pipeline/12）。
+	ResourceType *string `json:"resourceType"`
+	ResourceID   *string `json:"resourceId"`
 }
 
 // AuditLogQuery 是审计日志列表查询条件。
 //
 // 过滤分支按「if/else if」互斥优先级依次判定：
 // Type → UserType → UserID → 时间区间 → 全量。
-// Keyword / RequestMethod 作为附加 AND 条件叠加在上述主分支之上。
+// Keyword / RequestMethod / Username / Action / ResourceType 作为附加 AND 条件叠加在上述主分支之上。
 // 时间区间与单边时间条件属于仓储等价能力（供清理预览与测试使用），
 // 不改变列表接口的可观测行为。
 type AuditLogQuery struct {
@@ -154,6 +158,12 @@ type AuditLogQuery struct {
 	Keyword string
 	// RequestMethod 非空时按 requestMethod 精确过滤。
 	RequestMethod string
+	// Username 非空时对 username 做包含匹配（不区分大小写）。
+	Username string
+	// Action 非空时按 action 精确过滤。
+	Action string
+	// ResourceType 非空时按 resourceType 精确过滤。
+	ResourceType string
 	// CreatedFrom / CreatedTo 组成时间区间，两端均为闭区间（$gte 且 $lte）。
 	// 只填其一时退化为 $gte / $lte 单边过滤。
 	CreatedFrom *time.Time

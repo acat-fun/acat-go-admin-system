@@ -13,7 +13,7 @@
 | 包 | 职责 |
 | --- | --- |
 | `domain` | 七域领域模型（dict/page/i18n/frontend_module/file/auditlog）与审计字段填充 |
-| `repo` | MySQL 数据访问（`t_acat_*` 表）+ Mongo 审计存储（`audit_logs` 集合） |
+| `repo` | MySQL 数据访问（`t_acat_*` 表）+ 审计存储两种实现（Mongo `audit_logs` 集合 / MySQL `t_acat_audit_log`） |
 | `service` | 七域业务逻辑（事务边界只在本层） |
 | `httpapi` | HTTP 处理器与路由注册（`/api/admin/system/**` 契约） |
 | `logic` | 权限码常量 + Checker/Actor（超管按角色：会话 roles 含 root） |
@@ -25,8 +25,16 @@
 ## 数据契约
 
 - 表：`acat_user` 库 `t_acat_dict`、`t_acat_dict_data`、`t_acat_i18n_type`、`t_acat_i18n_label`、
-  `t_acat_page`、`t_acat_page_history`、`t_acat_frontend_module`、`t_acat_file`、`t_acat_notification`；
-  审计日志存 MongoDB `audit_logs`（SQL 基线见 acat-db-baseline 仓）。
+  `t_acat_page`、`t_acat_page_history`、`t_acat_frontend_module`、`t_acat_file`、`t_acat_notification`
+  （其余 SQL 基线见 acat-db-baseline 仓）。
+- 审计日志存储可选（`repo.AuditLogStore` 的两种实现，过滤/排序/分页/时间口径一致，换存储不改契约）：
+
+  | 存储 | 落点 | 建表 |
+  | --- | --- | --- |
+  | `mongo`（配置项不填时的默认值） | MongoDB 集合 `audit_logs` | 不建 MySQL 表 |
+  | `mysql` | 关系表 `t_acat_audit_log`（表名可配，列与 Mongo 文档字段一一对应） | 装配时 `EnsureSchema` 幂等建表 |
+
+  配置项取值 `mongo` / `mysql`（大小写不敏感），其它取值装配即报错。
 - 超级管理员：**按角色判定**——会话 roles 快照含 `root`（`t_acat_role.id = code = "root"`），
   判定入口 `logic.IsRootSession` / `logic.Actor.IsRoot`（与 acat-go-common/permission 同口径）。
 
@@ -58,6 +66,20 @@ svc, err := adminsvc.New(adminsvc.Options{
     }),
     FileKeyPrefix: "platform", // 对象键形如 platform/file/<uuid>、platform/user/avatar/<uuid>
 })
+```
+
+审计存储装配（配置项决定存储库；不填走 Mongo，填 `mysql` 走关系表并自动建表）：
+
+```go
+audits, err := adminrepo.NewAuditLogStore(ctx, adminrepo.AuditStoreOptions{
+    Kind:  adminrepo.AuditStoreKind(os.Getenv("ACAT_AUDIT_STORE")), // 空 = mongo
+    Mongo: adminrepo.MongoAuditOptions{URI: mongoURI, Database: "acat_dev", Location: loc},
+    MySQL: adminrepo.MySQLAuditOptions{DB: dbHandle, Table: "t_acat_audit_log", Location: loc},
+})
+if closer, ok := audits.(adminrepo.AuditStoreCloser); ok {
+    defer func() { _ = closer.Close(ctx) }()
+}
+svc, err := adminsvc.New(adminsvc.Options{ /* ...其余依赖 */ Audits: audits})
 ```
 
 通知域（各端挂自己的路由前缀）：

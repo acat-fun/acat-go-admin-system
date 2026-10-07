@@ -41,6 +41,8 @@ var ErrAuditLogPageSizeInvalid = errors.New("repo: 审计日志 pageSize 必须�
 //	updateBy       string|null
 //	createdAt      Date(ms, UTC)      LocalDateTime ←→ Date 按 options.Location 换算
 //	updatedAt      Date(ms, UTC)|null
+//	resourceType   string|null
+//	resourceId     string|null
 type MongoAuditLogStore struct {
 	client           *mongo.Client
 	database         string
@@ -118,8 +120,9 @@ func (s *MongoAuditLogStore) Ping(ctx context.Context) error {
 
 // List 实现 AuditLogStore：
 //
-//   - 过滤：见 domain.AuditLogQuery（Type 优先，逐级 else-if）；
-//   - 排序：createdAt DESC；
+//   - 过滤：见 domain.AuditLogQuery（Type 优先，逐级 else-if；Username/Action/ResourceType/
+//     RequestMethod/Keyword 叠加 AND）；
+//   - 排序：createdAt DESC，同一毫秒再按 _id DESC（分页稳定，与 MySQL 实现同口径）；
 //   - 分页：skip = (pageIndex-1)*pageSize，limit = pageSize；total = 过滤后总文档数
 //     （与当前页无关）。
 func (s *MongoAuditLogStore) List(ctx context.Context, query domain.AuditLogQuery) (domain.AuditLogPage, error) {
@@ -136,7 +139,7 @@ func (s *MongoAuditLogStore) List(ctx context.Context, query domain.AuditLogQuer
 		return domain.AuditLogPage{}, fmt.Errorf("统计审计日志失败: %w", err)
 	}
 	findOptions := options.Find().
-		SetSort(bson.D{{Key: "createdAt", Value: -1}}).
+		SetSort(bson.D{{Key: "createdAt", Value: -1}, {Key: "_id", Value: -1}}).
 		SetSkip(skip).
 		SetLimit(limit)
 	cursor, err := s.collectionRef().Find(opCtx, filter, findOptions)
@@ -252,6 +255,8 @@ type auditLogDocument struct {
 	UpdateBy      *string    `bson:"updateBy"`
 	CreatedAt     *time.Time `bson:"createdAt"`
 	UpdatedAt     *time.Time `bson:"updatedAt"`
+	ResourceType  *string    `bson:"resourceType"`
+	ResourceID    *string    `bson:"resourceId"`
 }
 
 // newAuditLogDocument 把领域对象转换为 BSON 文档（写入路径）。
@@ -283,6 +288,8 @@ func newAuditLogDocument(entry domain.AuditLog, location *time.Location) (auditL
 		UpdateBy:      entry.UpdateBy,
 		CreatedAt:     &created,
 		UpdatedAt:     updated,
+		ResourceType:  entry.ResourceType,
+		ResourceID:    entry.ResourceID,
 	}, nil
 }
 
@@ -305,6 +312,8 @@ func (d auditLogDocument) toDomain(location *time.Location) domain.AuditLog {
 		RequestParams: d.RequestParams,
 		CreateBy:      d.CreateBy,
 		UpdateBy:      d.UpdateBy,
+		ResourceType:  d.ResourceType,
+		ResourceID:    d.ResourceID,
 	}
 	if d.CreatedAt != nil {
 		entry.CreatedAt = stringPtr(domain.FormatAuditDateTime(*d.CreatedAt, location))
@@ -315,7 +324,8 @@ func (d auditLogDocument) toDomain(location *time.Location) domain.AuditLog {
 	return entry
 }
 
-// auditLogFilter 构造过滤条件（主分支互斥见 domain.AuditLogQuery；Keyword/RequestMethod 叠加 AND）。
+// auditLogFilter 构造过滤条件（主分支互斥见 domain.AuditLogQuery；
+// Username/Action/ResourceType/RequestMethod/Keyword 叠加 AND）。
 func auditLogFilter(query domain.AuditLogQuery) bson.D {
 	filter := bson.D{}
 	switch {
@@ -335,19 +345,32 @@ func auditLogFilter(query domain.AuditLogQuery) bson.D {
 	case query.CreatedTo != nil:
 		filter = append(filter, bson.E{Key: "createdAt", Value: bson.D{{Key: "$lte", Value: *query.CreatedTo}}})
 	}
+	if resourceType := strings.TrimSpace(query.ResourceType); resourceType != "" {
+		filter = append(filter, bson.E{Key: "resourceType", Value: resourceType})
+	}
+	if action := strings.TrimSpace(query.Action); action != "" {
+		filter = append(filter, bson.E{Key: "action", Value: action})
+	}
+	if username := strings.TrimSpace(query.Username); username != "" {
+		filter = append(filter, bson.E{Key: "username", Value: auditLogContainsPattern(username)})
+	}
 	if method := strings.TrimSpace(query.RequestMethod); method != "" {
 		filter = append(filter, bson.E{Key: "requestMethod", Value: method})
 	}
 	if keyword := strings.TrimSpace(query.Keyword); keyword != "" {
-		pattern := regexp.QuoteMeta(keyword)
-		regex := bson.D{{Key: "$regex", Value: pattern}, {Key: "$options", Value: "i"}}
+		pattern := auditLogContainsPattern(keyword)
 		filter = append(filter, bson.E{Key: "$or", Value: bson.A{
-			bson.D{{Key: "username", Value: regex}},
-			bson.D{{Key: "requestUri", Value: regex}},
-			bson.D{{Key: "detail", Value: regex}},
+			bson.D{{Key: "username", Value: pattern}},
+			bson.D{{Key: "requestUri", Value: pattern}},
+			bson.D{{Key: "detail", Value: pattern}},
 		}})
 	}
 	return filter
+}
+
+// auditLogContainsPattern 构造不区分大小写的包含匹配（字面量转义，避免正则注入）。
+func auditLogContainsPattern(value string) bson.D {
+	return bson.D{{Key: "$regex", Value: regexp.QuoteMeta(value)}, {Key: "$options", Value: "i"}}
 }
 
 // auditLogIDValue 把领域字符串 id 转换为 BSON `_id`：

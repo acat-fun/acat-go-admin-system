@@ -118,3 +118,59 @@ func TestMemoryAuditLogInsertFillsDefaults(t *testing.T) {
 
 // 编译期确认内存实现满足接口（真实 Mongo 实现的接入点）。
 var _ AuditLogStore = (*MemoryAuditLogStore)(nil)
+
+// TestMemoryAuditLogAdditionalFilters 校验资源/操作/操作人过滤为叠加 AND 条件
+// （与 Mongo/MySQL 实现同语义）。
+func TestMemoryAuditLogAdditionalFilters(t *testing.T) {
+	store := NewMemoryAuditLogStore()
+	ctx := context.Background()
+	userID := "7"
+	username := "Admin"
+	action := "deploy"
+	resourceType := "pipeline"
+	resourceID := "12"
+	other := "8"
+	if err := store.Insert(ctx, domain.AuditLog{
+		ID: "a1", Type: "OPERATION", UserID: &userID, Username: &username,
+		Action: &action, ResourceType: &resourceType, ResourceID: &resourceID,
+		CreatedAt: stringPtr("2026-09-14T09:02:03.456"),
+	}); err != nil {
+		t.Fatalf("Insert 失败: %v", err)
+	}
+	if err := store.Insert(ctx, domain.AuditLog{
+		ID: "a2", Type: "CREATE", UserID: &other,
+		CreatedAt: stringPtr("2026-09-14T09:02:04.000"),
+	}); err != nil {
+		t.Fatalf("Insert 失败: %v", err)
+	}
+
+	cases := []struct {
+		name  string
+		query domain.AuditLogQuery
+		want  int
+	}{
+		{name: "资源类型精确", query: domain.AuditLogQuery{ResourceType: "pipeline"}, want: 1},
+		{name: "资源类型不匹配", query: domain.AuditLogQuery{ResourceType: "server"}, want: 0},
+		{name: "动作精确", query: domain.AuditLogQuery{Action: "deploy"}, want: 1},
+		{name: "操作人包含且忽略大小写", query: domain.AuditLogQuery{Username: "adm"}, want: 1},
+		{name: "操作人不匹配", query: domain.AuditLogQuery{Username: "root"}, want: 0},
+		{name: "叠加 AND 全中", query: domain.AuditLogQuery{ResourceType: "pipeline", Action: "deploy", Username: "ADM"}, want: 1},
+		{name: "叠加 AND 有一项不中", query: domain.AuditLogQuery{ResourceType: "pipeline", Action: "create"}, want: 0},
+	}
+	for _, item := range cases {
+		t.Run(item.name, func(t *testing.T) {
+			page, err := store.List(ctx, domain.AuditLogQuery{
+				Type: item.query.Type, UserType: item.query.UserType, UserID: item.query.UserID,
+				Username: item.query.Username, Action: item.query.Action,
+				ResourceType: item.query.ResourceType, Keyword: item.query.Keyword,
+				PageIndex: 1, PageSize: 10,
+			})
+			if err != nil {
+				t.Fatalf("List 失败: %v", err)
+			}
+			if int(page.Total) != item.want {
+				t.Fatalf("命中数异常: got=%d want=%d", page.Total, item.want)
+			}
+		})
+	}
+}

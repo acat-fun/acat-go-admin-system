@@ -12,8 +12,9 @@ import (
 
 // AuditLogStore 是审计日志存储的可注入接口。
 //
-// 生产实现是 MongoAuditLogStore（MongoDB 集合 audit_logs）；
-// MemoryAuditLogStore 只用于单元测试与无 Mongo 的本地测试场景，**不在 main 装配中使用**。
+// 生产实现两种：MongoAuditLogStore（MongoDB 集合 audit_logs）与 MySQLAuditLogStore
+// （关系表 t_acat_audit_log），由宿主的存储配置项二选一（见 NewAuditLogStore）；
+// MemoryAuditLogStore 只用于单元测试与本地测试场景，**不在 main 装配中使用**。
 type AuditLogStore interface {
 	// List 分页查询审计日志。
 	List(ctx context.Context, query domain.AuditLogQuery) (domain.AuditLogPage, error)
@@ -27,10 +28,10 @@ type AuditLogStore interface {
 
 // MemoryAuditLogStore 是线程安全的内存审计日志实现，**仅作测试替身**（进程重启即丢数据）。
 //
-// 语义与 MongoAuditLogStore 一致：
-//   - 过滤：Type → UserType → UserID → 时间区间；
+// 语义与 Mongo/MySQL 实现一致：
+//   - 过滤：Type → UserType → UserID → 时间区间，Username/Action/ResourceType/RequestMethod/Keyword 叠加 AND；
 //   - 排序：createdAt DESC；
-//   - 分页：pageIndex 1 基 → offset = (pageIndex-1)*pageSize；pageSize<1 与 Mongo 实现一样报错；
+//   - 分页：pageIndex 1 基 → offset = (pageIndex-1)*pageSize；pageSize<1 与其它实现一样报错；
 //   - clean：删除 createdAt < before 的记录，返回删除后的剩余总数。
 type MemoryAuditLogStore struct {
 	mu   sync.RWMutex
@@ -81,13 +82,29 @@ func (s *MemoryAuditLogStore) List(_ context.Context, query domain.AuditLogQuery
 	return domain.AuditLogPage{Total: int64(len(filtered)), List: window}, nil
 }
 
-// matchesAuditLogQuery 判断一条记录是否命中查询条件（主分支互斥 + Keyword/RequestMethod 叠加）。
+// matchesAuditLogQuery 判断一条记录是否命中查询条件
+// （主分支互斥 + Username/Action/ResourceType/RequestMethod/Keyword 叠加 AND）。
 func matchesAuditLogQuery(entry domain.AuditLog, query domain.AuditLogQuery) bool {
 	if !matchesAuditLogPrimary(entry, query) {
 		return false
 	}
 	if method := strings.TrimSpace(query.RequestMethod); method != "" {
 		if entry.RequestMethod == nil || *entry.RequestMethod != method {
+			return false
+		}
+	}
+	if username := strings.TrimSpace(query.Username); username != "" {
+		if entry.Username == nil || !strings.Contains(strings.ToLower(*entry.Username), strings.ToLower(username)) {
+			return false
+		}
+	}
+	if action := strings.TrimSpace(query.Action); action != "" {
+		if entry.Action == nil || *entry.Action != action {
+			return false
+		}
+	}
+	if resourceType := strings.TrimSpace(query.ResourceType); resourceType != "" {
+		if entry.ResourceType == nil || *entry.ResourceType != resourceType {
 			return false
 		}
 	}

@@ -135,11 +135,11 @@ func TestNewAuditLogDocumentFieldNames(t *testing.T) {
 		keys = append(keys, element.Key)
 		values[element.Key] = element.Value
 	}
-	// 字段集合 = AuditLogEntity 的 16 个字段（id → _id）。
+	// 字段集合 = AuditLogEntity 的 18 个字段（id → _id）。
 	wantKeys := []string{
 		"_id", "type", "userId", "username", "userType", "action", "detail", "ip",
 		"userAgent", "requestUri", "requestMethod", "requestParams", "createBy", "updateBy",
-		"createdAt", "updatedAt",
+		"createdAt", "updatedAt", "resourceType", "resourceId",
 	}
 	if len(keys) != len(wantKeys) {
 		t.Fatalf("字段集合异常: %v", keys)
@@ -154,6 +154,9 @@ func TestNewAuditLogDocumentFieldNames(t *testing.T) {
 	}
 	if values["createBy"] != nil || values["updateBy"] != nil || values["updatedAt"] != nil {
 		t.Fatalf("审计字段应写 null: %+v", values)
+	}
+	if values["resourceType"] != nil || values["resourceId"] != nil {
+		t.Fatalf("资源字段应写 null: %+v", values)
 	}
 	createdAt, ok := values["createdAt"].(bson.DateTime)
 	if !ok {
@@ -231,6 +234,19 @@ func TestAuditLogFilterDerivedQueries(t *testing.T) {
 			name:  "无过滤（findAll）",
 			query: domain.AuditLogQuery{},
 			want:  bson.D{},
+		},
+		{
+			name:  "资源类型精确过滤",
+			query: domain.AuditLogQuery{ResourceType: "pipeline"},
+			want:  bson.D{{Key: "resourceType", Value: "pipeline"}},
+		},
+		{
+			name:  "action/username 叠加 AND",
+			query: domain.AuditLogQuery{Action: "deploy", Username: " ad "},
+			want: bson.D{
+				{Key: "action", Value: "deploy"},
+				{Key: "username", Value: bson.D{{Key: "$regex", Value: "ad"}, {Key: "$options", Value: "i"}}},
+			},
 		},
 	}
 	for _, item := range cases {

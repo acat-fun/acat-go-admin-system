@@ -31,6 +31,22 @@ import (
 // javaAuditPrefixes 是固定的审计范围前缀（后端网关暴露的管理端路径）。
 var javaAuditPrefixes = []string{"/api/read/admin/", "/api/admin/user/"}
 
+// resourceTypeAliases 把路由首段归一到审计页使用的资源类型词汇
+// （宿主审计页按 resourceType 筛选，见 devops 平台审计页的资源下拉）。
+var resourceTypeAliases = map[string]string{
+	"dicts":            "dict",
+	"i18n-types":       "language_type",
+	"pages":            "catalog_page",
+	"frontend-modules": "frontend_module",
+	"files":            "file",
+	"audit-logs":       "audit",
+	"workers":          "user",
+	"readers":          "user",
+	"profile":          "user",
+	"roles":            "role",
+	"permissions":      "permission",
+}
+
 // SelfPrefix 是本服务自身控制器的路由前缀。
 //
 // 审计范围是 javaAuditPrefixes 与 SelfPrefix 的并集，
@@ -147,6 +163,7 @@ func (r *Recorder) record(req *http.Request, meta RouteMeta) {
 		entry.Detail = stringOrNil(meta.Detail)
 		entry.RequestURI = stringPtr(path)
 		entry.RequestMethod = stringPtr(method)
+		entry.ResourceType = stringOrNil(resourceTypeOf(path))
 	}
 
 	if err := r.store.Insert(req.Context(), entry); err != nil {
@@ -157,6 +174,39 @@ func (r *Recorder) record(req *http.Request, meta RouteMeta) {
 			"detail", meta.Detail,
 		)
 	}
+}
+
+// resourceTypeOf 从请求路径推导资源类型：取审计范围前缀后的首个语义段
+// （跳过数字与路径变量段），命中别名表时归一到平台词汇，否则原样返回该段。
+func resourceTypeOf(path string) string {
+	rest := path
+	for _, prefix := range append([]string{SelfPrefix}, javaAuditPrefixes...) {
+		if strings.HasPrefix(path, prefix) {
+			rest = strings.TrimPrefix(path, prefix)
+			break
+		}
+	}
+	for _, segment := range strings.Split(rest, "/") {
+		segment = strings.TrimSpace(segment)
+		if segment == "" || strings.HasPrefix(segment, "{") || isNumericSegment(segment) {
+			continue
+		}
+		if alias, ok := resourceTypeAliases[segment]; ok {
+			return alias
+		}
+		return segment
+	}
+	return ""
+}
+
+// isNumericSegment 判断路径段是否为纯数字（资源 id）。
+func isNumericSegment(segment string) bool {
+	for _, char := range segment {
+		if char < '0' || char > '9' {
+			return false
+		}
+	}
+	return segment != ""
 }
 
 // requestPath 返回与 HttpServletRequest.getRequestURI() 同形的路径：

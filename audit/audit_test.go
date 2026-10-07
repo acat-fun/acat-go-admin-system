@@ -160,6 +160,9 @@ func TestWriteOperationIsRecorded(t *testing.T) {
 	if domain.DerefString(entry.IP) != "203.0.113.9" || domain.DerefString(entry.UserAgent) != "curl/8.14.1" {
 		t.Fatalf("ip/userAgent 异常: %+v", entry)
 	}
+	if domain.DerefString(entry.ResourceType) != "dict" {
+		t.Fatalf("resourceType 应归一到平台词汇 dict: %+v", entry)
+	}
 	if domain.DerefString(entry.RequestParams) != `{"code":"book_tag"}` {
 		t.Fatalf("requestParams 应取请求体 JSON: %q", domain.DerefString(entry.RequestParams))
 	}
@@ -451,5 +454,32 @@ func TestWriteFailureLogsWarning(t *testing.T) {
 	recorder.record(req, RouteMeta{Detail: "DictAdminController.createDict"})
 	if !strings.Contains(logged.String(), "审计日志写入失败") {
 		t.Fatalf("应记录 warning 日志: %q", logged.String())
+	}
+}
+
+// TestResourceTypeOf 校验资源类型推导：别名归一、数字段跳过、未知段原样返回。
+func TestResourceTypeOf(t *testing.T) {
+	cases := map[string]string{
+		"/api/admin/system/dicts":            "dict",
+		"/api/admin/system/dicts/123":        "dict",
+		"/api/admin/system/i18n-types":       "language_type",
+		"/api/admin/system/pages/9":          "catalog_page",
+		"/api/admin/system/frontend-modules": "frontend_module",
+		"/api/admin/system/files":            "file",
+		"/api/admin/system/audit-logs":       "audit",
+		"/api/admin/user/workers":            "user",
+		"/api/admin/user/readers/7":          "user",
+		"/api/admin/user/roles":              "role",
+		"/api/admin/user/permissions":        "permission",
+		"/api/admin/user/profile/password":   "user",
+		"/api/read/admin/book/books":         "book",
+		"/api/admin/system/unknown-resource": "unknown-resource",
+		"/api/admin/system/{id}":             "",
+		"/api/admin/system/123":              "",
+	}
+	for path, want := range cases {
+		if got := resourceTypeOf(path); got != want {
+			t.Fatalf("resourceTypeOf(%q) = %q, want %q", path, got, want)
+		}
 	}
 }

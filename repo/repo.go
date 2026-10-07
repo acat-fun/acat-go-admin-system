@@ -7,8 +7,8 @@
 //   - 乐观锁：update 返回影响行数，由 service 决定 0 行是报错（前端模块 40901）还是忽略（字典/页面）；
 //   - 主键：UUID v7（domain.NewID()）。
 //
-// 外部依赖（MongoDB / 对象存储）不在此包：分别通过 AuditLogStore 与 storage.ObjectStorage
-// 接口隔离，默认提供内存实现（无 Mongo/MinIO 的环境）。
+// 审计日志有两种存储实现（MongoDB 集合 / MySQL 表，见 NewAuditLogStore），对象存储通过
+// storage.ObjectStorage 接口隔离且不在本包内；两者都提供内存实现供无 Mongo/MinIO 的环境使用。
 package repo
 
 import (
