@@ -27,4 +27,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-// 依赖均走远端解析（go-common GitHub Public；本模块 Gitea 私有）。
+// 依赖均走远端解析（go-common GitHub Public；本模块 GitHub 私有）。
